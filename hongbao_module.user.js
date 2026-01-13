@@ -2,7 +2,7 @@
 // @name         鱼排红包板块
 // @namespace    https://fishpi.cn
 // @license      MIT
-// @version      1.0
+// @version      1.1
 // @description  右侧新增红包板块，将聊天室红包同步到红包板块，保持实时更新，支持多类型红包
 // @author       muli
 // @match        https://fishpi.cn/cr
@@ -12,6 +12,8 @@
 // @downloadURL  https://raw.githubusercontent.com/mu-xiao-li/yupai-extend-js/main/hongbao_module.user.js
 // @updateURL    https://raw.githubusercontent.com/mu-xiao-li/yupai-extend-js/main/hongbao_module.user.js
 // ==/UserScript==
+
+// 2026-01-13 新增“是否自动删除已抢光的红包”配置，可配置无效红包是否自动删除
 
 (function() {
     'use strict';
@@ -26,7 +28,8 @@
         position: 'above',           // 红包面板位置: above(上方) / below(下方)
         autoScrollNew: false,         // 关闭自动滚动到新红包（新的在上面）
         monitorNewMessages: true,     // 监听新消息
-        newMessageThreshold: 5        // 每次扫描的新消息数量
+        newMessageThreshold: 5,        // 每次扫描的新消息数量
+        autoDelRedPackets: false        // 是否自动删除已抢光的红包
     };
 
     // 存储红包数据
@@ -263,6 +266,10 @@
                 observer: null,
                 isNew: true
             };
+            // 自动删除打开的话 过滤已抢光的红包
+            if (CONFIG.autoDelRedPackets && packetData.status == 'empty') {
+                return;
+            }
 
             redPackets.set(packetId, packetData);
             processedMessageIds.add(packetId);
@@ -335,7 +342,7 @@
 
             if (hasNewMessages) {
                 // 延迟执行，确保DOM完全加载
-                setTimeout(scanLatestMessages, 300);
+                setTimeout(scanLatestMessages, 200);
             }
         });
 
@@ -403,11 +410,31 @@
         return 'available';
     }
 
+    // 删除指定红包
+    function delRedPacket(id) {
+        if (!CONFIG.autoDelRedPackets) {
+            return;
+        }
+        // 使用 querySelector
+        var element = document.querySelector('.red-packet-list .red-packet-item[data-packet-id="' + id +'"]');
+        if (element) {
+            // 删除红包
+            element.remove();
+            // 删除缓存数据
+            redPackets.delete(id);
+            displayOrder = displayOrder.filter(item => item == id);
+            currentDisplayed.delete(id);
+            //processedMessageIds.delete(id);
+        }
+
+    }
+
     // 设置红包观察器
     function setupRedPacketObserver(packetData) {
         // 如果红包已抢光，则不设置观察器
         if (packetData.status === 'empty') {
             console.log(`红包 ${packetData.id} 已抢光，不设置观察器`);
+            //delRedPacket(packetData.id);
             return;
         }
 
@@ -430,10 +457,15 @@
 
                         // 如果红包被抢光，断开观察器以优化性能
                         if (newStatus === 'empty') {
-                            console.log(`红包 ${packetData.id} 已抢光，断开观察器`);
+                            //console.log(`红包 ${packetData.id} 已抢光，断开观察器`);
                             observer.disconnect();
                             packetData.observer = null;
                             observers.delete(packetData.id);
+                            if (CONFIG.autoDelRedPackets) {
+                                delRedPacket(packetData.id);
+                                return;
+                            }
+
                         }
                     }
                 }
