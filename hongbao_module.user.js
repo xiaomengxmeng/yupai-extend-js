@@ -687,22 +687,22 @@
         `;
 
         // 更新点击事件，使其指向原红包
-        const redPacketBtn = redPacketContent.querySelector('.hongbao__item');
-        if (redPacketBtn && packetData.originalRedPacket) {
-            const originalOnclick = packetData.originalRedPacket.getAttribute('onclick');
-            if (originalOnclick) {
-                redPacketBtn.setAttribute('onclick', originalOnclick);
-
-                // 确保点击时触发原事件
-                redPacketBtn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    // 调用原红包的点击事件
-                    if (packetData.originalRedPacket) {
-                        packetData.originalRedPacket.click();
-                    }
-                });
-            }
-        }
+        // const redPacketBtn = redPacketContent.querySelector('.hongbao__item');
+        // if (redPacketBtn && packetData.originalRedPacket) {
+        //     const originalOnclick = packetData.originalRedPacket.getAttribute('onclick');
+        //     if (originalOnclick) {
+        //         redPacketBtn.setAttribute('onclick', originalOnclick);
+        //
+        //         // 确保点击时触发原事件
+        //         redPacketBtn.addEventListener('click', function(e) {
+        //             e.stopPropagation();
+        //             // 调用原红包的点击事件
+        //             if (packetData.originalRedPacket) {
+        //                 packetData.originalRedPacket.click();
+        //             }
+        //         });
+        //     }
+        // }
 
         // 移除多余的操作按钮
         const actionButtons = redPacketContent.querySelectorAll('.action__item, .fn__layer, details');
