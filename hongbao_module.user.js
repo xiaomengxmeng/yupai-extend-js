@@ -2,7 +2,7 @@
 // @name         鱼排红包板块
 // @namespace    https://fishpi.cn
 // @license      MIT
-// @version      1.1
+// @version      1.2
 // @description  右侧新增红包板块，将聊天室红包同步到红包板块，保持实时更新，支持多类型红包
 // @author       muli
 // @match        https://fishpi.cn/cr
@@ -12,8 +12,8 @@
 // @downloadURL  https://raw.githubusercontent.com/mu-xiao-li/yupai-extend-js/main/hongbao_module.user.js
 // @updateURL    https://raw.githubusercontent.com/mu-xiao-li/yupai-extend-js/main/hongbao_module.user.js
 // ==/UserScript==
-
 // 2026-01-13 新增“是否自动删除已抢光的红包”配置，可配置无效红包是否自动删除
+// 2026-01-13 muli 新增切换浮窗模式按钮，新增不捕获的红包类型配置，新增配置面板
 
 (function() {
     'use strict';
@@ -29,7 +29,12 @@
         autoScrollNew: false,         // 关闭自动滚动到新红包（新的在上面）
         monitorNewMessages: true,     // 监听新消息
         newMessageThreshold: 5,        // 每次扫描的新消息数量
-        autoDelRedPackets: false        // 是否自动删除已抢光的红包
+        autoDelRedPackets: false,        // 是否自动删除已抢光的红包
+        // 新增：过滤的红包类型
+        filterRedPacketTypes: ['猜拳红包'],  // 例如：['普通红包', '专属红包', '猜拳红包']
+
+        // 新增：是否启用红包类型过滤
+        enableRedPacketFilter: false
     };
 
     // 存储红包数据
@@ -48,6 +53,8 @@
         if (isInitialized) return;
 
         console.log('红包同步脚本初始化...');
+        // 从localStorage加载配置
+        loadConfigFromStorage();
 
         // 查找清风明月模块
         const breezeMoonModule = findBreezeMoonModule();
@@ -92,7 +99,9 @@
         addEventListeners();
 
         isInitialized = true;
+
         console.log('红包同步脚本初始化完成');
+
     }
 
     // 查找清风明月模块
@@ -181,6 +190,38 @@
         controls.appendChild(countBadge);
         controls.appendChild(expandBtn);
 
+        // 添加切换浮窗模式按钮
+        const floatingBtn = document.createElement('button');
+        floatingBtn.className = 'floating-window-btn';
+        floatingBtn.innerHTML = '⇄';
+        floatingBtn.title = '切换浮窗模式';
+        floatingBtn.style.cssText = `
+            width: 24px;
+            height: 24px;
+            border-radius: 50% !important;
+            background: linear-gradient(135deg, #2b8a3e 0%, #20c997 100%) !important;
+            color: white !important;
+            font-size: 14px !important;
+            font-weight: bold !important;
+            cursor: pointer !important;
+            box-shadow: 0 4px 15px rgba(32, 201, 151, 0.4) !important;
+            border: 3px solid white !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 5px;
+            padding: 0;
+            line-height: 1;
+        `;
+
+        // 添加浮窗切换功能
+        floatingBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            toggleFloatingWindow(panel);
+        });
+
+        controls.appendChild(floatingBtn);
+
         header.appendChild(title);
         header.appendChild(controls);
 
@@ -252,6 +293,16 @@
         // 如果消息已处理过，跳过
         if (processedMessageIds.has(packetId)) return;
 
+        // 检查是否应该过滤此红包类型
+        if (CONFIG.enableRedPacketFilter && CONFIG.filterRedPacketTypes.length > 0) {
+            // 获取红包类型
+            const redPacketType = getRedPacketType(redPacket);
+            if (CONFIG.filterRedPacketTypes.includes(redPacketType)) {
+                //console.log(`过滤红包类型: ${redPacketType} (红包ID: ${packetId})`);
+                return; // 跳过此红包
+            }
+        }
+
         if (!redPackets.has(packetId)) {
             const packetData = {
                 id: packetId,
@@ -278,6 +329,33 @@
             // 创建观察器来监听红包状态变化
             setupRedPacketObserver(packetData);
         }
+    }
+
+    // 获取红包类型
+    function getRedPacketType(redPacket) {
+        const typeElement = redPacket.querySelector('b');
+        if (!typeElement) return '未知红包';
+
+        const typeText = typeElement.textContent.trim();
+
+        // 定义已知的红包类型
+        const knownTypes = [
+            '拼手气红包',
+            '普通红包',
+            '专属红包',
+            '心跳红包',
+            '猜拳红包',
+            '石头剪刀布红包'  // 有些页面可能显示这个
+        ];
+
+        // 检查是否为已知类型
+        for (const knownType of knownTypes) {
+            if (typeText.includes(knownType)) {
+                return knownType;
+            }
+        }
+
+        return typeText; // 返回原始文本
     }
 
     // 处理新红包
@@ -859,6 +937,167 @@
         }
     }
 
+    // 浮窗状态存储
+    let isFloatingWindow = false;
+    let floatingWindowData = null;
+
+    // 切换浮窗模式
+    function toggleFloatingWindow(panel) {
+        if (isFloatingWindow) {
+            // 切换到停靠模式
+            restoreToDockedMode(panel);
+        } else {
+            // 切换到浮窗模式
+            switchToFloatingMode(panel);
+        }
+
+        isFloatingWindow = !isFloatingWindow;
+        updateFloatingButtonState();
+    }
+
+    // 切换到浮窗模式
+    function switchToFloatingMode(panel) {
+        // 保存原始位置信息
+        const parent = panel.parentNode;
+        const nextSibling = panel.nextSibling;
+        const originalStyle = panel.getAttribute('style');
+
+        floatingWindowData = {
+            parent: parent,
+            nextSibling: nextSibling,
+            originalStyle: originalStyle,
+            originalPosition: {
+                top: panel.offsetTop,
+                left: panel.offsetLeft
+            }
+        };
+
+        // 设置为浮窗样式
+        panel.style.cssText = `
+        position: fixed !important;
+        top: 100px !important;
+        right: 20px !important;
+        width: 320px !important;
+        z-index: 10000 !important;
+        background: #fff !important;
+        border: 2px solid #20c997 !important;
+        border-radius: 12px !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2) !important;
+        margin-bottom: 0 !important;
+        max-height: 70vh !important;
+        overflow: hidden !important;
+        resize: both !important;
+        min-width: 300px !important;
+        min-height: 200px !important;
+    `;
+
+        // 使面板可拖动
+        makePanelDraggable(panel);
+
+        // 添加到body
+        document.body.appendChild(panel);
+
+        //console.log('已切换到浮窗模式');
+    }
+
+    // 恢复到停靠模式
+    function restoreToDockedMode(panel) {
+        if (!floatingWindowData) return;
+
+        // 移除可拖动功能
+        panel.style.cursor = '';
+        panel.removeAttribute('data-dragging');
+
+        // 恢复原始样式
+        panel.style.cssText = floatingWindowData.originalStyle || `
+            margin-bottom: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #fff;
+        `;
+
+        // 恢复到原始位置
+        if (floatingWindowData.nextSibling) {
+            floatingWindowData.parent.insertBefore(panel, floatingWindowData.nextSibling);
+        } else {
+            floatingWindowData.parent.appendChild(panel);
+        }
+
+        //console.log('已恢复到停靠模式');
+    }
+
+    // 更新浮窗按钮状态
+    function updateFloatingButtonState() {
+        const floatingBtn = document.querySelector('.floating-window-btn');
+        if (!floatingBtn) return;
+
+        if (isFloatingWindow) {
+            floatingBtn.style.background = 'linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%) !important';
+            floatingBtn.style.boxShadow = '0 4px 15px rgba(255, 107, 107, 0.4) !important';
+            floatingBtn.title = '切换为停靠模式';
+        } else {
+            floatingBtn.style.background = 'linear-gradient(135deg, #2b8a3e 0%, #20c997 100%) !important';
+            floatingBtn.style.boxShadow = '0 4px 15px rgba(32, 201, 151, 0.4) !important';
+            floatingBtn.title = '切换为浮窗模式';
+        }
+    }
+
+    // 使面板可拖动
+    function makePanelDraggable(panel) {
+        let isDragging = false;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+
+        // 面板头部作为拖动区域
+        const header = panel.querySelector('.module-header');
+        if (!header) return;
+
+        header.style.cursor = 'move';
+
+        header.addEventListener('mousedown', startDrag);
+
+        function startDrag(e) {
+            isDragging = true;
+            const rect = panel.getBoundingClientRect();
+            dragOffsetX = e.clientX - rect.left;
+            dragOffsetY = e.clientY - rect.top;
+
+            panel.style.cursor = 'grabbing';
+            panel.setAttribute('data-dragging', 'true');
+
+            document.addEventListener('mousemove', doDrag);
+            document.addEventListener('mouseup', stopDrag);
+
+            e.preventDefault();
+        }
+
+        function doDrag(e) {
+            if (!isDragging) return;
+
+            // 计算新位置
+            const newLeft = e.clientX - dragOffsetX;
+            const newTop = e.clientY - dragOffsetY;
+
+            // 限制在可视区域内
+            const maxX = window.innerWidth - panel.offsetWidth;
+            const maxY = window.innerHeight - panel.offsetHeight;
+
+            panel.style.left = Math.max(0, Math.min(newLeft, maxX)) + 'px';
+            panel.style.top = Math.max(0, Math.min(newTop, maxY)) + 'px';
+            panel.style.right = 'auto';
+        }
+
+        function stopDrag() {
+            isDragging = false;
+            panel.style.cursor = '';
+            panel.removeAttribute('data-dragging');
+
+            document.removeEventListener('mousemove', doDrag);
+            document.removeEventListener('mouseup', stopDrag);
+        }
+    }
+
     // 添加CSS样式
     function addStyles() {
         const style = document.createElement('style');
@@ -933,14 +1172,23 @@
                 50% { box-shadow: 0 0 0 10px rgba(255, 107, 107, 0); }
             }
 
-            /* 响应式调整 */
+            /*  浮窗模式样式 */
+            .floating-window-mode {
+                z-index: 9999 !important;
+            }
+            
+            .red-packet-module[data-dragging="true"] {
+                opacity: 0.9;
+                box-shadow: 0 15px 40px rgba(0,0,0,0.3) !important;
+            }
+            
+            /* 响应式调整浮窗 */
             @media (max-width: 768px) {
-                .red-packet-body {
-                    max-height: 300px !important;
-                }
-
-                .red-packet-item {
-                    padding: 8px;
+                .red-packet-module.floating-window-mode {
+                    width: 280px !important;
+                    max-height: 60vh !important;
+                    top: 50px !important;
+                    right: 10px !important;
                 }
             }
         `;
@@ -962,15 +1210,15 @@
     window.RedPacketManager = {
         rescan: function() {
             scanRedPackets();
-            console.log(`重新扫描，共发现 ${redPackets.size} 个红包`);
+            //console.log(`重新扫描，共发现 ${redPackets.size} 个红包`);
         },
         scanLatest: function() {
             scanLatestMessages();
-            console.log('扫描最新消息完成');
+            //console.log('扫描最新消息完成');
         },
         syncAll: function() {
             syncRedPacketStates();
-            console.log('已同步所有红包状态');
+            //console.log('已同步所有红包状态');
         },
         getStats: function() {
             const stats = {
@@ -1001,9 +1249,551 @@
                     cleaned++;
                 }
             });
-            console.log(`清理了 ${cleaned} 个已抢光红包的观察器`);
-        }
+            //console.log(`清理了 ${cleaned} 个已抢光红包的观察器`);
+        },
+        // 新增：设置过滤的红包类型
+        setFilterTypes: function(types) {
+            CONFIG.filterRedPacketTypes = Array.isArray(types) ? types : [];
+            console.log(`已设置过滤的红包类型: ${CONFIG.filterRedPacketTypes.join(', ')}`);
+            // 重新扫描以应用新的过滤规则
+            this.rescan();
+        },
+
+        // 新增：启用/禁用红包过滤
+        toggleFilter: function(enabled) {
+            CONFIG.enableRedPacketFilter = enabled;
+            console.log(`红包类型过滤已${enabled ? '启用' : '禁用'}`);
+            this.rescan();
+        },
+
+        // 新增：获取当前过滤的红包类型
+        getFilterTypes: function() {
+            return CONFIG.filterRedPacketTypes;
+        },
+        getConfig: function() {
+            return Object.assign({}, CONFIG);
+        },
+        setConfig: function(newConfig) {
+            Object.assign(CONFIG, newConfig);
+            saveConfigToStorage();
+            updatePanelStyles();
+            console.log('配置已更新');
+        },
+        openConfig: function() {
+            const configPanel = document.querySelector('.red-packet-config');
+            if (configPanel) {
+                initializeConfigForm(); // 刷新表单
+                configPanel.style.display = 'block';
+            }
+        },
+        closeConfig: function() {
+            const configPanel = document.querySelector('.red-packet-config');
+            if (configPanel) {
+                configPanel.style.display = 'none';
+            }
+        },
     };
 
-    console.log('红包同步脚本已加载，使用 RedPacketManager 进行调试');
+    //console.log('红包同步脚本已加载，使用 RedPacketManager 进行调试');
+
+    // 创建综合配置面板
+    function createConfigPanel() {
+        // 如果已存在配置面板，则移除重建
+        const existingPanel = document.querySelector('.red-packet-config');
+        if (existingPanel) existingPanel.remove();
+
+        // 创建配置面板容器
+        const configPanel = document.createElement('div');
+        configPanel.className = 'red-packet-config';
+        configPanel.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border: 2px solid #ff6b6b;
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 10002;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+            width: 400px;
+            max-width: 90vw;
+            max-height: 80vh;
+            overflow-y: auto;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: none;
+        `;
+
+        // 配置面板标题
+        configPanel.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee;">
+            <h3 style="margin: 0; color: #ff6b6b; font-size: 18px;">🎁 红包面板配置</h3>
+            <button id="closeConfig" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #999; padding: 0;">×</button>
+        </div>
+        
+        <div class="config-section" style="margin-bottom: 20px;">
+            <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px;">📊 显示设置</h4>
+            <div class="config-item" style="margin-bottom: 10px;">
+                <label style="display: flex; justify-content: space-between; align-items: center; font-size: 13px;">
+                    <span>最大显示红包数量:</span>
+                    <input type="number" id="maxDisplayCount" min="5" max="100" 
+                           style="width: 80px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px;">
+                </label>
+            </div>
+            <div class="config-item" style="margin-bottom: 10px;">
+                <label style="display: flex; justify-content: space-between; align-items: center; font-size: 13px;">
+                    <span>默认可见红包数量:</span>
+                    <input type="number" id="visibleCount" min="1" max="20" 
+                           style="width: 80px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px;">
+                </label>
+            </div>
+            <div class="config-item" style="margin-bottom: 10px;">
+                <label style="display: flex; justify-content: space-between; align-items: center; font-size: 13px;">
+                    <span>实时扫描新消息数量:</span>
+                    <input type="number" id="newMessageThreshold" min="1" max="20" 
+                           style="width: 80px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px;">
+                </label>
+            </div>
+        </div>
+        
+        <div class="config-section" style="margin-bottom: 20px;">
+            <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px;">⚙️ 功能设置</h4>
+            <div class="config-item" style="margin-bottom: 10px;">
+                <label style="display: flex; align-items: center; font-size: 13px;">
+                    <input type="checkbox" id="autoScrollNew" style="margin-right: 8px;">
+                    自动滚动到最新红包
+                </label>
+            </div>
+            <div class="config-item" style="margin-bottom: 10px;">
+                <label style="display: flex; align-items: center; font-size: 13px;">
+                    <input type="checkbox" id="monitorNewMessages" style="margin-right: 8px;">
+                    实时监听新消息
+                </label>
+            </div>
+            <div class="config-item" style="margin-bottom: 10px;">
+                <label style="display: flex; align-items: center; font-size: 13px;">
+                    <input type="checkbox" id="autoDelRedPackets" style="margin-right: 8px;">
+                    自动删除已抢光的红包
+                </label>
+            </div>
+        </div>
+        
+        <div class="config-section" style="margin-bottom: 20px;">
+            <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px;">🚫 红包类型过滤</h4>
+            <div class="config-item" style="margin-bottom: 8px;">
+                <label style="display: flex; align-items: center; font-size: 13px;">
+                    <input type="checkbox" id="enableRedPacketFilter" style="margin-right: 8px;">
+                    启用红包类型过滤
+                </label>
+            </div>
+            <div style="margin-left: 20px; border-left: 2px solid #f0f0f0; padding-left: 15px;">
+                <p style="margin: 0 0 8px 0; font-size: 12px; color: #666;">过滤以下红包类型:</p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                    <label style="display: flex; align-items: center; font-size: 12px;">
+                        <input type="checkbox" class="redpacket-type" value="拼手气红包" style="margin-right: 6px;">
+                        拼手气红包
+                    </label>
+                    <label style="display: flex; align-items: center; font-size: 12px;">
+                        <input type="checkbox" class="redpacket-type" value="普通红包" style="margin-right: 6px;">
+                        普通红包
+                    </label>
+                    <label style="display: flex; align-items: center; font-size: 12px;">
+                        <input type="checkbox" class="redpacket-type" value="专属红包" style="margin-right: 6px;">
+                        专属红包
+                    </label>
+                    <label style="display: flex; align-items: center; font-size: 12px;">
+                        <input type="checkbox" class="redpacket-type" value="心跳红包" style="margin-right: 6px;">
+                        心跳红包
+                    </label>
+                    <label style="display: flex; align-items: center; font-size: 12px;">
+                        <input type="checkbox" class="redpacket-type" value="猜拳红包" style="margin-right: 6px;">
+                        猜拳红包
+                    </label>
+                    <label style="display: flex; align-items: center; font-size: 12px;">
+                        <input type="checkbox" class="redpacket-type" value="石头剪刀布红包" style="margin-right: 6px;">
+                        石头剪刀布红包
+                    </label>
+                </div>
+            </div>
+        </div>
+        
+        <div class="config-section" style="margin-bottom: 20px;">
+            <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px;">🎨 外观设置</h4>
+            <div class="config-item" style="margin-bottom: 10px;">
+                <label style="display: flex; justify-content: space-between; align-items: center; font-size: 13px;">
+                    <span>面板位置:</span>
+                    <select id="panelPosition" style="width: 120px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="above">清风明月上方</option>
+                        <option value="below">清风明月下方</option>
+                    </select>
+                </label>
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+            <button id="applyConfig" style="flex: 1; padding: 10px; background: linear-gradient(135deg, #ff6b6b, #ff8e53); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                保存并应用
+            </button>
+            <button id="resetConfig" style="flex: 1; padding: 10px; background: #f0f0f0; color: #666; border: none; border-radius: 6px; cursor: pointer;">
+                恢复默认
+            </button>
+        </div>
+        
+        <div style="margin-top: 15px; font-size: 11px; color: #999; text-align: center;">
+            配置将保存在本地，刷新页面后仍然有效
+        </div>
+    `;
+
+        document.body.appendChild(configPanel);
+
+        // 初始化配置表单
+        initializeConfigForm();
+
+        // 事件监听
+        const closeBtn = configPanel.querySelector('#closeConfig');
+        const applyBtn = configPanel.querySelector('#applyConfig');
+        const resetBtn = configPanel.querySelector('#resetConfig');
+
+        closeBtn.addEventListener('click', function() {
+            configPanel.style.display = 'none';
+        });
+
+        applyBtn.addEventListener('click', applyConfig);
+
+        resetBtn.addEventListener('click', resetConfig);
+
+        // 点击外部关闭配置面板
+        configPanel.addEventListener('click', function(e) {
+            if (e.target === configPanel) {
+                configPanel.style.display = 'none';
+            }
+        });
+
+        // 添加配置按钮
+        const floatingBtn = document.querySelector('.floating-window-btn');
+
+        // 显示/隐藏配置面板
+        window.toggleRedPacketConfig = function() {
+            configPanel.style.display = configPanel.style.display === 'none' ? 'block' : 'none';
+        };
+
+        if (floatingBtn && floatingBtn.parentNode) {
+
+            // 在原有配置按钮的样式基础上添加：
+            const configBtn = document.createElement('button');
+            configBtn.innerHTML = '⚙️';
+            configBtn.title = '配置面板';
+            configBtn.style.cssText = `
+                width: 24px;
+                height: 24px;
+                border-radius: 50% !important;
+                background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%) !important;
+                color: white !important;
+                font-size: 12px !important;
+                cursor: pointer !important;
+                border: 3px solid white !important;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-right: 5px;
+                padding: 0;
+                line-height: 1;
+                box-shadow: 0 4px 15px rgba(108, 92, 231, 0.4) !important;
+            `;
+
+            configBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                window.toggleRedPacketConfig();
+            });
+
+            floatingBtn.parentNode.insertBefore(configBtn, floatingBtn);
+        }
+
+        return configPanel;
+    }
+
+
+    // 初始化配置表单
+    function initializeConfigForm() {
+        // 显示设置
+        document.getElementById('maxDisplayCount').value = CONFIG.maxDisplayCount;
+        document.getElementById('visibleCount').value = CONFIG.visibleCount;
+        document.getElementById('newMessageThreshold').value = CONFIG.newMessageThreshold;
+
+        // 功能设置
+        document.getElementById('autoScrollNew').checked = CONFIG.autoScrollNew;
+        document.getElementById('monitorNewMessages').checked = CONFIG.monitorNewMessages;
+        document.getElementById('autoDelRedPackets').checked = CONFIG.autoDelRedPackets;
+
+        // 红包类型过滤
+        document.getElementById('enableRedPacketFilter').checked = CONFIG.enableRedPacketFilter;
+
+        // 设置选中的红包类型
+        const typeCheckboxes = document.querySelectorAll('.redpacket-type');
+        typeCheckboxes.forEach(checkbox => {
+            checkbox.checked = CONFIG.filterRedPacketTypes.includes(checkbox.value);
+        });
+
+        // 外观设置
+        document.getElementById('panelPosition').value = CONFIG.position;
+    }
+
+    // 应用配置
+    function applyConfig() {
+        // 显示设置
+        CONFIG.maxDisplayCount = parseInt(document.getElementById('maxDisplayCount').value) || 20;
+        CONFIG.visibleCount = parseInt(document.getElementById('visibleCount').value) || 5;
+        CONFIG.newMessageThreshold = parseInt(document.getElementById('newMessageThreshold').value) || 5;
+
+        // 功能设置
+        CONFIG.autoScrollNew = document.getElementById('autoScrollNew').checked;
+        CONFIG.monitorNewMessages = document.getElementById('monitorNewMessages').checked;
+        CONFIG.autoDelRedPackets = document.getElementById('autoDelRedPackets').checked;
+
+        // 红包类型过滤
+        CONFIG.enableRedPacketFilter = document.getElementById('enableRedPacketFilter').checked;
+        CONFIG.filterRedPacketTypes = [];
+        document.querySelectorAll('.redpacket-type:checked').forEach(checkbox => {
+            CONFIG.filterRedPacketTypes.push(checkbox.value);
+        });
+
+        // 外观设置
+        CONFIG.position = document.getElementById('panelPosition').value;
+
+        // 保存到localStorage
+        saveConfigToStorage();
+
+        // 更新面板样式
+        updatePanelStyles();
+
+        // 重新扫描红包
+        if (RedPacketManager && typeof RedPacketManager.rescan === 'function') {
+            RedPacketManager.rescan();
+        }
+
+        // 显示成功消息
+        muliShowToast('配置已保存并应用');
+
+        // 关闭配置面板
+        const configPanel = document.querySelector('.red-packet-config');
+        if (configPanel) {
+            configPanel.style.display = 'none';
+        }
+    }
+
+    // 恢复默认配置
+    function resetConfig() {
+        // 默认配置
+        const defaultConfig = {
+            maxDisplayCount: 20,
+            visibleCount: 5,
+            refreshInterval: 10000,
+            syncInterval: 1000,
+            preserveOriginal: true,
+            position: 'above',
+            autoScrollNew: false,
+            monitorNewMessages: true,
+            newMessageThreshold: 5,
+            autoDelRedPackets: false,
+            enableRedPacketFilter: false,
+            filterRedPacketTypes: []
+        };
+
+        // 更新CONFIG
+        Object.assign(CONFIG, defaultConfig);
+
+        // 更新表单
+        initializeConfigForm();
+
+        // 保存到localStorage
+        saveConfigToStorage();
+
+        // 重新扫描红包
+        if (RedPacketManager && typeof RedPacketManager.rescan === 'function') {
+            RedPacketManager.rescan();
+        }
+
+        muliShowToast('已恢复默认配置');
+    }
+
+    // 保存配置到localStorage
+    function saveConfigToStorage() {
+        try {
+            // 只保存必要的配置项
+            const configToSave = {
+                maxDisplayCount: CONFIG.maxDisplayCount,
+                visibleCount: CONFIG.visibleCount,
+                autoScrollNew: CONFIG.autoScrollNew,
+                monitorNewMessages: CONFIG.monitorNewMessages,
+                newMessageThreshold: CONFIG.newMessageThreshold,
+                autoDelRedPackets: CONFIG.autoDelRedPackets,
+                enableRedPacketFilter: CONFIG.enableRedPacketFilter,
+                filterRedPacketTypes: CONFIG.filterRedPacketTypes,
+                position: CONFIG.position
+            };
+
+            localStorage.setItem('redPacketConfig', JSON.stringify(configToSave));
+            //console.log('配置已保存到localStorage');
+        } catch (error) {
+            //console.error('保存配置失败:', error);
+        }
+    }
+
+    // 从localStorage加载配置
+    function loadConfigFromStorage() {
+        try {
+            const savedConfig = localStorage.getItem('redPacketConfig');
+            if (savedConfig) {
+                const parsedConfig = JSON.parse(savedConfig);
+
+                // 更新CONFIG
+                Object.keys(parsedConfig).forEach(key => {
+                    if (CONFIG.hasOwnProperty(key)) {
+                        CONFIG[key] = parsedConfig[key];
+                    }
+                });
+
+                //console.log('从localStorage加载配置成功');
+                return true;
+            }
+        } catch (error) {
+            //console.error('加载配置失败:', error);
+        }
+        return false;
+    }
+
+    // 更新面板样式
+    function updatePanelStyles() {
+        const redPacketBody = document.querySelector('.red-packet-body');
+        if (redPacketBody) {
+            redPacketBody.style.maxHeight = `${CONFIG.visibleCount * 120}px`;
+        }
+    }
+
+    // 配置面板的CSS样式（添加到addStyles函数中）
+    const configStyles = `
+        /* 配置面板样式 */
+        .red-packet-config {
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, -48%); }
+            to { opacity: 1; transform: translate(-50%, -50%); }
+        }
+        
+        .config-section {
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            border-left: 4px solid #ff6b6b;
+        }
+        
+        .config-item {
+            transition: all 0.2s ease;
+        }
+        
+        .config-item:hover {
+            background: rgba(255, 107, 107, 0.05);
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        
+        input[type="number"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #ff6b6b !important;
+            box-shadow: 0 0 0 2px rgba(255, 107, 107, 0.2);
+        }
+        
+        #applyConfig:hover {
+            background: linear-gradient(135deg, #ff4757, #ff7b4a) !important;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4) !important;
+        }
+        
+        #resetConfig:hover {
+            background: #e0e0e0 !important;
+            transform: translateY(-1px);
+        }
+        
+        /* 响应式调整 */
+        @media (max-width: 480px) {
+            .red-packet-config {
+                width: 95vw;
+                padding: 15px;
+            }
+            
+            .config-section {
+                padding: 12px;
+            }
+        }
+    `;
+
+    // 将配置样式添加到现有的样式表中
+    const styleElement = document.createElement('style');
+    styleElement.textContent = configStyles;
+    document.head.appendChild(styleElement);
+
+    setTimeout(createConfigPanel, 3000);
+
+    /**
+     * 消息提示
+     * @param message
+     * @param duration
+     * @param type
+     */
+    function muliShowToast(message, duration = 2000, type = 'info') {
+        const oldToast = document.getElementById('muli-toast');
+        if (oldToast) oldToast.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'muli-toast';
+        toast.innerHTML = message;
+
+        Object.assign(toast.style, {
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            color: 'white',
+            padding: '14px 24px',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: '500',
+            zIndex: '999999',
+            textAlign: 'center',
+            maxWidth: '80%',
+            boxShadow: '0 6px 20px rgba(0,0,0,0.2)',
+            pointerEvents: 'none',
+            opacity: '0',
+            transition: 'all 0.3s ease'
+        });
+
+        const typeColors = {
+            success: '#51cf66',
+            info: '#339af0',
+            warning: '#ff922b',
+            error: '#ff6b6b'
+        };
+        toast.style.borderLeft = `4px solid ${typeColors[type] || typeColors.info}`;
+
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translate(-50%, -50%) scale(1.05)';
+        }, 10);
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translate(-50%, -50%) scale(0.95)';
+
+            setTimeout(() => {
+                if (toast.parentNode) toast.parentNode.removeChild(toast);
+            }, 300);
+        }, duration);
+    }
+
 })();
