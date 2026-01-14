@@ -352,7 +352,10 @@
             const redPacketType = getRedPacketType(redPacket);
             if (CONFIG.filterRedPacketTypes.includes(redPacketType)) {
                 //console.log(`过滤红包类型: ${redPacketType} (红包ID: ${packetId})`);
-                return; // 跳过此红包
+                //在聊天室隐藏此红包，避免误触，只在红包面板展示红包
+                item.style.display = 'none';
+                // 不跳过，继续执行后续红包面板处理
+                // return; // 注释掉这行，不跳过处理
             }
         }
 
