@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         鱼派快捷功能
-// @version      2.3
+// @version      2.4
 // @description  快捷操作，快捷引用、消息、表情包分组、小尾巴
 // @author       Kirito + muli + 18 + trd
 // @match        https://fishpi.cn/cr
@@ -32,6 +32,7 @@
 // 2026-01-04 muli 修复关闭小尾巴时，引用依旧添加小尾巴；修复保存消息配置时，换行丢失问题
 // 2026-01-08 muli 新增表情包分组功能，与鱼排原有表情包不冲突，可同步保存和读取鱼排表情包数据
 // 2026-01-09 muli 表情包分组tab双击可修改名称，支持对已有表情包进行分组
+// 2026-01-14 muli 新增发送红包函数
 
 (function () {
     'use strict';
@@ -53,7 +54,7 @@
     let iconText = "![](https://fishpi.cn/gen?ver=0.1&scale=1.5&txt=#{msg}&url=#{avatar}&backcolor=#{backcolor}&fontcolor=#{fontcolor})";
 
     const client_us = "Web/沐里会睡觉";
-    const version_us = "v2.3";
+    const version_us = "v2.4";
 
     // 小尾巴开关状态
     var suffixFlag = window.localStorage['xwb_flag'] ? JSON.parse(window.localStorage['xwb_flag']) : true;
@@ -394,6 +395,12 @@
                 }
                 return Promise.reject('sendMsg参数错误');
             },
+            sendRedPacketMsg: (params) => {
+                if (typeof params === 'object') {
+                    return sendRedPacketMsg(params);
+                }
+                return Promise.reject('sendRedPacketMsg参数错误');
+            },
             sendIconTextMsg: (params) => {
                 if (typeof params === 'string') {
 
@@ -496,6 +503,8 @@
             switch (actionConfig.type) {
                 case 'sendMsg':
                     return () => sendMsg(actionConfig.params);
+                case 'sendRedPacketMsg':
+                    return () => sendRedPacketMsg(actionConfig.params);
                 case 'muliRefreshPage':
                     return () => muliRefreshPage(actionConfig.params);
                 case 'fetchPrivate':
@@ -1003,6 +1012,105 @@
                 }
             ]
         },
+        {
+            text: "发送红包",
+            color: "btn-red",
+            action: {
+                type: "sendRedPacketMsg",
+                params: {
+                    type: "猜拳红包",
+                    money: "",
+                    count: "1",
+                    msg: "来上一拳！",
+                    recivers: [
+                        ""
+                    ],
+                    gesture: "无"
+                }
+            },
+            children: [
+                {
+                    text: "拼手气",
+                    action: {
+                        type: "sendRedPacketMsg",
+                        params: {
+                            type: "拼手气红包",
+                            money: "256",
+                            count: "1",
+                            msg: "摸鱼者事尽成",
+                            recivers: [
+                                ""
+                            ],
+                            gesture: "无"
+                        }
+                    }
+                },
+                {
+                    text: "普通",
+                    action: {
+                        type: "sendRedPacketMsg",
+                        params: {
+                            type: "普通红包",
+                            money: "256",
+                            count: "1",
+                            msg: "摸鱼者事尽成",
+                            recivers: [
+                                ""
+                            ],
+                            gesture: "无"
+                        }
+                    }
+                },
+                {
+                    text: "专属",
+                    action: {
+                        type: "sendRedPacketMsg",
+                        params: {
+                            type: "专属红包",
+                            money: "256",
+                            count: "1",
+                            msg: "摸鱼者事尽成",
+                            recivers: [
+                                ""
+                            ],
+                            gesture: "无"
+                        }
+                    }
+                },
+                {
+                    text: "心跳",
+                    action: {
+                        type: "sendRedPacketMsg",
+                        params: {
+                            type: "心跳红包",
+                            money: "256",
+                            count: "1",
+                            msg: "摸鱼者事尽成",
+                            recivers: [
+                                ""
+                            ],
+                            gesture: "无"
+                        }
+                    }
+                },
+                {
+                    text: "猜拳",
+                    action: {
+                        type: "sendRedPacketMsg",
+                        params: {
+                            type: "猜拳红包",
+                            money: "256",
+                            count: "1",
+                            msg: "摸鱼者事尽成",
+                            recivers: [
+                                ""
+                            ],
+                            gesture: "无"
+                        }
+                    }
+                }
+            ]
+        },
     ];
 
     // 最终使用的配置
@@ -1053,6 +1161,8 @@
         //发送消息
         sendMsg(thisIconText);
     }
+
+    // 发送消息函数
     function sendMsg(msg) {
         if (Array.isArray(msg)) {
             var list = [];
@@ -1088,6 +1198,117 @@
             });
         }
 
+    }
+
+    // 发送红包函数
+    function sendRedPacketMsg(data) {
+        let msg = JSON.parse(JSON.stringify(data));
+        //格式化数据
+        if (msg.type) {
+            if (msg.type == '拼手气红包') {
+                msg.type = 'random';
+            } else if (msg.type == '普通红包') {
+                msg.type = 'average';
+            } else if (msg.type == '专属红包') {
+                msg.type = 'specify';
+            } else if (msg.type == '心跳红包') {
+                msg.type = 'heartbeat';
+            } else if (msg.type == '猜拳红包') {
+                msg.type = 'rockPaperScissors';
+            }
+        } else {
+            //
+            muliShowToast("拜托🙏先选一下红包类型好吗~");
+        }
+        if (msg.gesture && msg.gesture !== '无') {
+            if (msg.gesture == '石头') {
+                msg.gesture = '0';
+            } else if (msg.gesture == '剪刀') {
+                msg.gesture = '1';
+            } else if (msg.gesture == '布') {
+                msg.gesture = '2';
+            }
+        } else {
+            if(msg.type == 'rockPaperScissors') {
+                let input = prompt('请输入：石头（0）、剪刀（1）、布（2）', '0');
+                if (input === null) {
+                    muliShowToast("我跟你说剪刀石头布，你耳朵聋吗？");
+                    return;
+                }
+                msg.gesture = input;
+                if (msg.gesture == '石头') {
+                    msg.gesture = '0';
+                } else if (msg.gesture == '剪刀') {
+                    msg.gesture = '1';
+                } else if (msg.gesture == '布') {
+                    msg.gesture = '2';
+                }
+            }
+
+        }
+        if (!msg.msg) {
+            msg.msg = '沐里天下第一！！！';
+        }
+        if (!msg.money) {
+            let input = prompt('请输入红包金额：', '256');
+            if (input === null) {
+                muliShowToast("💰金额我替你填？？99999????~");
+                return;
+            }
+            msg.money = input;
+
+        }
+        if (!msg.count) {
+            msg.count = 1;
+        }
+        if ((!msg.recivers || msg.recivers < 1 || msg.recivers[0] == '') && msg.type == 'specify') {
+            let input = prompt('请输入专属用户名：）', 'muli');
+            if (input === null) {
+                muliShowToast("你懒得输入的话，就发给沐里大人！");
+                return;
+            }
+            msg.recivers = [input];
+        }
+
+        let content;
+        if (msg.type !== "rockPaperScissors") {
+            content = {
+                type: msg.type,
+                money: msg.money,
+                count: msg.count,
+                msg: msg.msg,
+                recivers: msg.recivers
+            }
+        } else {
+            content = {
+                type: msg.type,
+                money: msg.money,
+                count: msg.count,
+                msg: msg.msg,
+                recivers: msg.recivers,
+                gesture: msg.gesture
+            }
+        }
+
+        let requestJSONObject = {
+            content: "[redpacket]" + JSON.stringify(msg) + "[/redpacket]",
+            client: client_us + version_us
+        }
+        $.ajax({
+            url: Label.servePath + '/chat-room/send',
+            type: 'POST',
+            cache: false,
+            data: JSON.stringify(requestJSONObject),
+            success: function (result) {
+                if (0 !== result.code) {
+                    $('#chatContentTip').addClass('error').html('<ul><li>' + result.msg + '</li></ul>')
+                }
+            },
+            error: function (result) {
+                $('#chatContentTip').addClass('error').html('<ul><li>' + result.statusText + '</li></ul>')
+            }
+        })
+        Util.closeAlert();
     }
 
     //私信接口
@@ -2899,6 +3120,21 @@
     }
 
     // ================== 编辑器功能 ==================
+    // 红包类型
+    let RED_PACKET_TYPES = [
+        '拼手气红包',
+        '普通红包',
+        '专属红包',
+        '心跳红包',
+        '猜拳红包'
+    ];
+
+    let RED_PACKET_GESTURE = [
+        '无',
+        '石头',
+        '剪刀',
+        '布'
+    ];
     // 动作函数模板
     let ACTION_TEMPLATES = {
         sendMsg: {
@@ -2931,6 +3167,16 @@
                 { name: 'defaultValue', type: 'text', label: '默认值', required: false },
                 { name: 'actionCode', type: 'code', label: '发送内容', placeholder: '消息 + ${input}', required: true }
             ]
+        },
+        sendRedPacketMsg: {
+            params: [
+                { name: 'type', type: 'select', label: '红包类型', options: RED_PACKET_TYPES, required: false},
+                { name: 'money', type: 'number', label: '金额', defaultValue: 256, required: false },
+                { name: 'count', type: 'number', label: '红包数量', defaultValue: 1, required: false },
+                { name: 'msg', type: 'text', label: '红包信息', defaultValue: '摸鱼者事尽成', required: false },
+                { name: 'recivers', type: 'text', label: '专属用户名（逗号隔开，非专属可不填）', required: false },
+                { name: 'gesture', type: 'select', label: '石头，剪刀，布（非猜拳可不填）', options: RED_PACKET_GESTURE, required: false },
+            ]
         }
     };
     const COLOR_OPTIONS = [
@@ -2939,6 +3185,7 @@
         { value: 'btn-warn', label: '橙色', color: '#ff922b' },
         { value: 'btn-green', label: '绿色', color: '#51cf66' }
     ];
+
 
     function createEditButton() {
         const editBtn = document.createElement('div');
@@ -3350,7 +3597,7 @@
                 <option value="promptAndIconTextMsg" ${button.action?.type === 'promptAndIconTextMsg' ? 'selected' : ''}>自定义发送图标文字消息</option>
                 <option value="promptAndSend" ${button.action?.type === 'promptAndSend' ? 'selected' : ''}>输入框+发送</option>
                 <option value="fetchPrivate" ${button.action?.type === 'fetchPrivate' ? 'selected' : ''}>调用私信API</option>
-
+                <option value="sendRedPacketMsg" ${button.action?.type === 'sendRedPacketMsg' ? 'selected' : ''}>发送红包</option>
             </select>
         `;
 
@@ -3427,6 +3674,32 @@
                               rows="4" placeholder="${param.placeholder || ''}"
                               ${param.required ? 'required' : ''}>${value}</textarea>
                 `;
+            } else if (param.type === 'select') {
+                if (typeof currentParams === 'object') {
+                    value = currentParams[param.name] || param.defaultValue || '';
+                } else if (typeof currentParams === 'string') {
+                    value = currentParams || param.defaultValue || '';
+                } else {
+                    value = param.defaultValue || '';
+                }
+
+                let tempHtml = `
+                    <label class="form-label">${param.label}${param.required ? ' *' : ''}</label>
+                    <select class="form-input" name="action_${param.name}"
+                              value="${value || ''}"
+                              ${param.required ? 'required' : ''}>`;
+
+                for (var option of param.options) {
+                    tempHtml += `
+                        <option value="${option}" ${value === option ? 'selected' : ''} >${option}</option>
+                    `;
+                }
+
+                tempHtml += `
+                        </select>
+                    `;
+
+                group.innerHTML = tempHtml;
             } else if (param.type === 'msg') {
                 if (Array.isArray(currentParams)) {
                     value = currentParams.join(',');
@@ -3490,6 +3763,7 @@
                     <option value="promptAndIconTextMsg" ${childData.action?.type === 'promptAndIconTextMsg' ? 'selected' : ''}>自定义发送图标文字消息</option>
                     <option value="promptAndSend" ${childData.action?.type === 'promptAndSend' ? 'selected' : ''}>输入框+发送</option>
                     <option value="fetchPrivate" ${childData.action?.type === 'fetchPrivate' ? 'selected' : ''}>调用私信API</option>
+                    <option value="sendRedPacketMsg" ${childData.action?.type === 'sendRedPacketMsg' ? 'selected' : ''}>发送红包</option>
                 </select>
             </div>
             <div class="form-group action-params"></div>
@@ -3569,6 +3843,32 @@
                               rows="2" placeholder="${param.placeholder || ''}"
                               ${param.required ? 'required' : ''}>${value}</textarea>
                 `;
+            } else if (param.type === 'select') {
+                if (typeof currentParams === 'object') {
+                    value = currentParams[param.name] || param.defaultValue || '';
+                } else if (typeof currentParams === 'string') {
+                    value = currentParams || param.defaultValue || '';
+                } else {
+                    value = param.defaultValue || '';
+                }
+
+                let tempHtml = `
+                    <label class="form-label">${param.label}${param.required ? ' *' : ''}</label>
+                    <select class="form-input" name="action_${param.name}"
+                              value="${value || ''}"
+                              ${param.required ? 'required' : ''}>`;
+
+                for (var option of param.options) {
+                    tempHtml += `
+                        <option value="${option}" ${value === option ? 'selected' : ''} >${option}</option>
+                    `;
+                }
+
+                tempHtml += `
+                        </select>
+                    `;
+
+                group.innerHTML = tempHtml;
             } else {
                 if (Array.isArray(currentParams)) {
                     value = currentParams.join(',');
@@ -4239,6 +4539,20 @@
                     const defaultValue = form.querySelector('[name="action_defaultValue"]')?.value;
                     buttonData.action.params = {};
                     buttonData.action.params.defaultValue = defaultValue;
+                } else if (actionType === 'sendRedPacketMsg') {
+                    const type = form.querySelector('[name="action_type"]')?.value;
+                    const money = form.querySelector('[name="action_money"]')?.value;
+                    const count = form.querySelector('[name="action_count"]')?.value;
+                    const msg = form.querySelector('[name="action_msg"]')?.value;
+                    const recivers = form.querySelector('[name="action_recivers"]')?.value;
+                    const gesture = form.querySelector('[name="action_gesture"]')?.value;
+                    buttonData.action.params = {};
+                    buttonData.action.params.type = type;
+                    buttonData.action.params.money = money;
+                    buttonData.action.params.count = count;
+                    buttonData.action.params.msg = msg;
+                    buttonData.action.params.recivers = recivers == null ? [] : recivers.split(",");
+                    buttonData.action.params.gesture = gesture;
                 }
             }
 
@@ -4301,6 +4615,20 @@
                             const defaultValue = childForm.querySelector('[name="action_defaultValue"]')?.value;
                             childData.action.params = {};
                             childData.action.params.defaultValue = defaultValue;
+                        } else if (childActionType === 'sendRedPacketMsg') {
+                            const type = childForm.querySelector('[name="action_type"]')?.value;
+                            const money = childForm.querySelector('[name="action_money"]')?.value;
+                            const count = childForm.querySelector('[name="action_count"]')?.value;
+                            const msg = childForm.querySelector('[name="action_msg"]')?.value;
+                            const recivers = childForm.querySelector('[name="action_recivers"]')?.value;
+                            const gesture = childForm.querySelector('[name="action_gesture"]')?.value;
+                            childData.action.params = {};
+                            childData.action.params.type = type;
+                            childData.action.params.money = money;
+                            childData.action.params.count = count;
+                            childData.action.params.msg = msg;
+                            childData.action.params.recivers = recivers == null ? [] : recivers.split(",");
+                            childData.action.params.gesture = gesture;
                         }
                     }
 
