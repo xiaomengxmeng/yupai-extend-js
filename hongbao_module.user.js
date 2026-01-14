@@ -2,7 +2,7 @@
 // @name         鱼排红包板块
 // @namespace    https://fishpi.cn
 // @license      MIT
-// @version      1.2
+// @version      1.3
 // @description  右侧新增红包板块，将聊天室红包同步到红包板块，保持实时更新，支持多类型红包
 // @author       muli
 // @match        https://fishpi.cn/cr
@@ -14,6 +14,7 @@
 // ==/UserScript==
 // 2026-01-13 新增“是否自动删除已抢光的红包”配置，可配置无效红包是否自动删除
 // 2026-01-13 muli 新增切换浮窗模式按钮，新增不捕获的红包类型配置，新增配置面板
+// 2026-01-14 muli 新增背景颜色配置，新增最小化，最小化后的小图标可右键，会提醒有效的红包，点击后展开定位到指定红包
 
 (function() {
     'use strict';
@@ -30,12 +31,16 @@
         monitorNewMessages: true,     // 监听新消息
         newMessageThreshold: 5,        // 每次扫描的新消息数量
         autoDelRedPackets: false,        // 是否自动删除已抢光的红包
-        // 新增：过滤的红包类型
+        // 过滤的红包类型
         filterRedPacketTypes: ['猜拳红包'],  // 例如：['普通红包', '专属红包', '猜拳红包']
 
-        // 新增：是否启用红包类型过滤
-        enableRedPacketFilter: false
+        // 是否启用红包类型过滤
+        enableRedPacketFilter: false,
+        backgroundColor: '#ffffff',           // 红包板块背景颜色
     };
+
+    // 单个红包高度
+    const one_item_height = 200;
 
     // 存储红包数据
     let redPackets = new Map();        // 红包ID -> 红包数据
@@ -47,6 +52,13 @@
     let chatObserver = null;           // 聊天室观察器
     let lastProcessedTime = 0;         // 上次处理时间
     let processedMessageIds = new Set(); // 已处理的消息ID
+
+    // 最小化全局变量
+    let isMinimized = false;                  // 是否已最小化
+    let minimizedIcon = null;                 // 最小化图标元素
+    let hasNewRedPacketAlert = false;         // 是否有新红包提醒
+    let alertRedPacketIds = new Set();        // 需要提醒的红包ID集合
+    let alertAnimationInterval = null;        // 提醒动画间隔
 
     // 主初始化函数
     function init() {
@@ -86,6 +98,9 @@
             }
         }
 
+        // 根据配置刷新样式
+        updatePanelStyles();
+
         // 初始全量扫描
         scanRedPackets();
 
@@ -99,6 +114,9 @@
         addEventListeners();
 
         isInitialized = true;
+
+        // 新增：检查初始最小化状态
+        setTimeout(checkInitialMinimizedState, 300);
 
         console.log('红包同步脚本初始化完成');
 
@@ -190,6 +208,39 @@
         controls.appendChild(countBadge);
         controls.appendChild(expandBtn);
 
+        // 新增最小化按钮
+        const minimizeBtn = document.createElement('button');
+        minimizeBtn.className = 'minimize-btn';
+        minimizeBtn.innerHTML = '−'; // 减号表示最小化
+        minimizeBtn.title = '最小化';
+        minimizeBtn.style.cssText = `
+            width: 24px;
+            height: 24px;
+            border-radius: 50% !important;
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%) !important;
+            color: white !important;
+            font-size: 16px !important;
+            font-weight: bold !important;
+            cursor: pointer !important;
+            box-shadow: 0 4px 15px rgba(106, 17, 203, 0.4) !important;
+            border: 3px solid white !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 5px;
+            padding: 0;
+            line-height: 1;
+        `;
+
+        // 添加最小化按钮事件
+        minimizeBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            toggleMinimizeMode();
+        });
+
+        // 将最小化按钮添加到控制区域
+        controls.appendChild(minimizeBtn);
+
         // 添加切换浮窗模式按钮
         const floatingBtn = document.createElement('button');
         floatingBtn.className = 'floating-window-btn';
@@ -225,11 +276,13 @@
         header.appendChild(title);
         header.appendChild(controls);
 
+
+
         // 面板主体
         const body = document.createElement('div');
         body.className = 'module-panel red-packet-body';
         body.style.cssText = `
-            max-height: ${CONFIG.visibleCount * 120}px;
+            max-height: ${CONFIG.visibleCount * one_item_height}px;
             overflow-y: auto;
             transition: max-height 0.3s ease;
             padding: 10px;
@@ -249,7 +302,7 @@
         expandBtn.addEventListener('click', function() {
             const isExpanded = body.style.maxHeight === 'none';
             if (isExpanded) {
-                body.style.maxHeight = `${CONFIG.visibleCount * 120}px`;
+                body.style.maxHeight = `${CONFIG.visibleCount * one_item_height}px`;
                 expandBtn.innerHTML = '▼';
             } else {
                 body.style.maxHeight = 'none';
@@ -325,6 +378,11 @@
             redPackets.set(packetId, packetData);
             processedMessageIds.add(packetId);
             newPackets.push(packetData);
+
+            // 新增：如果红包状态为可领取且面板已最小化，则添加提醒
+            if (packetData.status !== 'empty' && isMinimized) {
+                addRedPacketAlert(packetId);
+            }
 
             // 创建观察器来监听红包状态变化
             setupRedPacketObserver(packetData);
@@ -533,6 +591,13 @@
                         packetData.status = newStatus;
                         shouldUpdate = true;
 
+                        // 新增：如果状态变为可领取且面板已最小化，则添加提醒
+                        if (newStatus !== 'empty' && isMinimized) {
+                            addRedPacketAlert(packetData.id);
+                        } else if (newStatus === 'empty' && isMinimized) {
+                            delRedPacketAlert(packetData.id);
+                        }
+
                         // 如果红包被抢光，断开观察器以优化性能
                         if (newStatus === 'empty') {
                             //console.log(`红包 ${packetData.id} 已抢光，断开观察器`);
@@ -645,7 +710,7 @@
                 border: 2px solid #ff4757;
                 border-radius: 6px;
                 padding: 10px;
-                background: #fff;
+                background: ${CONFIG.backgroundColor};
                 transition: all 0.2s ease;
                 position: relative;
                 overflow: hidden;
@@ -674,7 +739,7 @@
                 border: 1px solid #e0e0e0;
                 border-radius: 6px;
                 padding: 10px;
-                background: #fff;
+                background: ${CONFIG.backgroundColor};
                 transition: all 0.2s ease;
                 position: relative;
                 overflow: hidden;
@@ -760,6 +825,7 @@
         redPacketContent.style.cssText = `
             margin: 0;
             padding: 0;
+            background: ${CONFIG.backgroundColor};
             transform: scale(0.85);
             transform-origin: top left;
         `;
@@ -937,6 +1003,395 @@
         }
     }
 
+    // 新增：创建最小化图标（浮动小红包）
+    function createMinimizedIcon() {
+        if (minimizedIcon) return minimizedIcon;
+
+        const icon = document.createElement('div');
+        icon.className = 'red-packet-minimized-icon';
+        icon.style.cssText = `
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+            border-radius: 50%;
+            cursor: move;
+            z-index: 10001;
+            box-shadow: 0 6px 20px rgba(255, 107, 107, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: white;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            user-select: none;
+            border: 3px solid white;
+        `;
+        icon.innerHTML = '🧧';
+        icon.title = '点击展开红包面板';
+
+        // 添加可拖动功能
+        makeMinimizedIconDraggable(icon);
+
+        // 点击事件：展开红包面板
+        setupMinimizedIconClickHandler(icon);
+
+        // 右键菜单：显示提醒的红包数量
+        icon.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            showMinimizedIconContextMenu(e, icon);
+        });
+
+        document.body.appendChild(icon);
+        minimizedIcon = icon;
+
+        return icon;
+    }
+
+    // 新增：使最小化图标可拖动
+    function makeMinimizedIconDraggable(icon) {
+        let isDragging = false;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+
+        icon.addEventListener('mousedown', startDrag);
+
+        function startDrag(e) {
+            // 如果点击的是图标本身而不是内部元素，才允许拖动
+            if (e.target !== icon && !icon.contains(e.target)) return;
+
+            isDragging = true;
+            const rect = icon.getBoundingClientRect();
+            dragOffsetX = e.clientX - rect.left;
+            dragOffsetY = e.clientY - rect.top;
+
+            icon.style.cursor = 'grabbing';
+            icon.style.opacity = '0.9';
+            icon.style.transition = 'none'; // 关闭过渡效果，使拖动更跟手
+
+            // 使用requestAnimationFrame实现流畅拖动
+            document.addEventListener('mousemove', doDrag);
+            document.addEventListener('mouseup', stopDrag);
+
+            e.preventDefault();
+            e.stopPropagation(); // 阻止事件冒泡
+        }
+
+        function doDrag(e) {
+            if (!isDragging) return;
+
+            // 使用requestAnimationFrame优化性能
+            requestAnimationFrame(() => {
+                const newLeft = e.clientX - dragOffsetX;
+                const newTop = e.clientY - dragOffsetY;
+
+                // 限制在可视区域内
+                const maxX = window.innerWidth - icon.offsetWidth;
+                const maxY = window.innerHeight - icon.offsetHeight;
+
+                icon.style.left = Math.max(10, Math.min(newLeft, maxX)) + 'px';
+                icon.style.top = Math.max(10, Math.min(newTop, maxY)) + 'px';
+                icon.style.right = 'auto';
+                icon.style.bottom = 'auto';
+            });
+        }
+
+        function stopDrag(e) {
+            if (!isDragging) return;
+
+            isDragging = false;
+            icon.style.cursor = 'move';
+            icon.style.opacity = '1';
+            icon.style.transition = 'all 0.3s ease'; // 恢复过渡效果
+
+            document.removeEventListener('mousemove', doDrag);
+            document.removeEventListener('mouseup', stopDrag);
+
+            // 保存位置到localStorage
+            saveMinimizedIconPosition();
+
+
+            e.preventDefault();
+            e.stopPropagation(); // 阻止事件冒泡
+        }
+    }
+
+    // 小红包点击事件
+    function setupMinimizedIconClickHandler(icon) {
+        // 使用标志位来区分拖动和点击
+        let isClickable = true;
+        let mouseDownTime = 0;
+        let mouseDownX = 0;
+        let mouseDownY = 0;
+
+        icon.addEventListener('mousedown', function(e) {
+            mouseDownTime = Date.now();
+            mouseDownX = e.clientX;
+            mouseDownY = e.clientY;
+            isClickable = true;
+
+            // 设置超时，如果按下时间超过300ms，认为是拖动而不是点击
+            setTimeout(() => {
+                if (Date.now() - mouseDownTime > 300) {
+                    isClickable = false;
+                }
+            }, 300);
+        });
+
+        icon.addEventListener('click', function(e) {
+
+            // 检查是否是有效的点击（不是拖动）
+            const clickDuration = Date.now() - mouseDownTime;
+            const moveDistance = Math.sqrt(
+                Math.pow(e.clientX - mouseDownX, 2) +
+                Math.pow(e.clientY - mouseDownY, 2)
+            );
+
+            // 如果点击时间超过300ms或移动距离超过5像素，认为是拖动
+            if (clickDuration > 300 || moveDistance > 10) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+
+            // 只有有效的点击才展开面板
+            if (isClickable) {
+                toggleMinimizeMode();
+            }
+        });
+    }
+
+    // 新增：保存最小化图标位置
+    function saveMinimizedIconPosition() {
+        if (!minimizedIcon) return;
+
+        try {
+            const rect = minimizedIcon.getBoundingClientRect();
+            const position = {
+                x: rect.left,
+                y: rect.top
+            };
+            localStorage.setItem('redPacketMinimizedIconPosition', JSON.stringify(position));
+        } catch (error) {
+            console.error('保存最小化图标位置失败:', error);
+        }
+    }
+
+    // 新增：加载最小化图标位置
+    function loadMinimizedIconPosition() {
+        try {
+            const savedPosition = localStorage.getItem('redPacketMinimizedIconPosition');
+            if (savedPosition && minimizedIcon) {
+                const position = JSON.parse(savedPosition);
+
+                // 确保位置在可视区域内
+                const maxX = window.innerWidth - minimizedIcon.offsetWidth;
+                const maxY = window.innerHeight - minimizedIcon.offsetHeight;
+
+                const x = Math.max(10, Math.min(position.x, maxX));
+                const y = Math.max(10, Math.min(position.y, maxY));
+
+                minimizedIcon.style.left = x + 'px';
+                minimizedIcon.style.top = y + 'px';
+                minimizedIcon.style.right = 'auto';
+                minimizedIcon.style.bottom = 'auto';
+            }
+        } catch (error) {
+            console.error('加载最小化图标位置失败:', error);
+        }
+    }
+
+    // 新增：切换最小化模式
+    function toggleMinimizeMode() {
+        const redPacketPanel = document.querySelector('.red-packet-module');
+        const minimizeBtn = document.querySelector('.minimize-btn');
+
+        if (!redPacketPanel || !minimizeBtn) return;
+
+        if (isMinimized) {
+            // 恢复面板
+            redPacketPanel.style.display = '';
+            if (minimizedIcon) {
+                minimizedIcon.style.display = 'none';
+            }
+            minimizeBtn.innerHTML = '−';
+            minimizeBtn.title = '最小化';
+            minimizeBtn.style.background = 'linear-gradient(135deg, #6a11cb 0%, #2575fc 100%) !important';
+
+            // 如果有提醒的红包，定位到第一个
+            if (alertRedPacketIds.size > 0) {
+                const firstAlertId = Array.from(alertRedPacketIds)[0];
+                highlightOriginalRedPacket(firstAlertId);
+
+                // 清除提醒状态
+                clearAlertAnimation();
+                alertRedPacketIds.clear();
+                hasNewRedPacketAlert = false;
+            }
+        } else {
+            // 最小化面板
+            redPacketPanel.style.display = 'none';
+            const icon = createMinimizedIcon();
+            icon.style.display = 'flex';
+            loadMinimizedIconPosition();
+            minimizeBtn.innerHTML = '＋';
+            minimizeBtn.title = '恢复面板';
+            minimizeBtn.style.background = 'linear-gradient(135deg, #20c997 0%, #2b8a3e 100%) !important';
+        }
+
+        isMinimized = !isMinimized;
+
+        // 保存状态到localStorage
+        try {
+            localStorage.setItem('redPacketMinimizedState', isMinimized.toString());
+        } catch (error) {
+            console.error('保存最小化状态失败:', error);
+        }
+    }
+
+    // 新增：显示最小化图标的右键菜单
+    function showMinimizedIconContextMenu(e, icon) {
+        // 移除旧的右键菜单
+        const oldMenu = document.querySelector('.minimized-icon-context-menu');
+        if (oldMenu) oldMenu.remove();
+
+        // 创建右键菜单
+        const menu = document.createElement('div');
+        menu.className = 'minimized-icon-context-menu';
+        menu.style.cssText = `
+            position: fixed;
+            left: ${e.clientX}px;
+            top: ${e.clientY}px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10002;
+            min-width: 150px;
+            padding: 8px 0;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        `;
+
+        menu.innerHTML = `
+            <div style="padding: 8px 16px; font-size: 12px; color: #666; border-bottom: 1px solid #f0f0f0;">
+                红包提醒: ${alertRedPacketIds.size} 个新红包
+            </div>
+            <div class="context-menu-item" style="padding: 8px 16px; font-size: 13px; cursor: pointer; transition: background 0.2s;">
+                展开面板
+            </div>
+            <div class="context-menu-item" style="padding: 8px 16px; font-size: 13px; cursor: pointer; transition: background 0.2s;">
+                清除提醒
+            </div>
+            <div class="context-menu-item" style="padding: 8px 16px; font-size: 13px; cursor: pointer; transition: background 0.2s; border-top: 1px solid #f0f0f0;">
+                停靠位置
+            </div>
+        `;
+
+        // 添加事件监听
+        const items = menu.querySelectorAll('.context-menu-item');
+        items[0].addEventListener('click', function() {
+            toggleMinimizeMode();
+            menu.remove();
+        });
+
+        items[1].addEventListener('click', function() {
+            clearAlertAnimation();
+            alertRedPacketIds.clear();
+            hasNewRedPacketAlert = false;
+            if (minimizedIcon) {
+                minimizedIcon.style.animation = '';
+                minimizedIcon.style.boxShadow = '0 6px 20px rgba(255, 107, 107, 0.5)';
+            }
+            menu.remove();
+        });
+
+        items[2].addEventListener('click', function() {
+            // 停靠到屏幕边缘
+            if (minimizedIcon) {
+                minimizedIcon.style.left = 'auto';
+                minimizedIcon.style.top = 'auto';
+                minimizedIcon.style.right = '30px';
+                minimizedIcon.style.bottom = '100px';
+                saveMinimizedIconPosition();
+            }
+            menu.remove();
+        });
+
+        document.body.appendChild(menu);
+
+        // 点击其他地方关闭菜单
+        const closeMenu = function() {
+            menu.remove();
+            document.removeEventListener('click', closeMenu);
+        };
+
+        setTimeout(() => {
+            document.addEventListener('click', closeMenu);
+        }, 100);
+    }
+
+    // 新增：添加新红包提醒
+    function addRedPacketAlert(packetId) {
+        if (isMinimized && packetId) {
+            alertRedPacketIds.add(packetId);
+            hasNewRedPacketAlert = true;
+
+            // 启动提醒动画
+            startAlertAnimation();
+        }
+    }
+
+    // 新增：删除新红包提醒
+    function delRedPacketAlert(packetId) {
+        if (isMinimized && packetId) {
+            var index = alertRedPacketIds.delete(packetId);
+            if (alertRedPacketIds.size < 1) {
+                hasNewRedPacketAlert = false;
+                clearAlertAnimation();
+            }
+        }
+    }
+
+    // 新增：启动提醒动画
+    function startAlertAnimation() {
+        if (!minimizedIcon || !hasNewRedPacketAlert) return;
+
+        // 清除之前的动画
+        clearAlertAnimation();
+
+        // 创建闪烁动画
+        let isRed = false;
+        alertAnimationInterval = setInterval(() => {
+            if (minimizedIcon) {
+                if (isRed) {
+                    minimizedIcon.style.background = 'linear-gradient(135deg, #ff6b6b, #ff8e53)';
+                    minimizedIcon.style.boxShadow = '0 6px 20px rgba(255, 107, 107, 0.5)';
+                } else {
+                    minimizedIcon.style.background = 'linear-gradient(135deg, #ff0000, #ff4757)';
+                    minimizedIcon.style.boxShadow = '0 6px 20px rgba(255, 0, 0, 0.7)';
+                }
+                isRed = !isRed;
+            }
+        }, 600); // 每600ms切换一次颜色
+    }
+
+    // 新增：清除提醒动画
+    function clearAlertAnimation() {
+        if (alertAnimationInterval) {
+            clearInterval(alertAnimationInterval);
+            alertAnimationInterval = null;
+        }
+
+        if (minimizedIcon) {
+            minimizedIcon.style.animation = '';
+            minimizedIcon.style.background = 'linear-gradient(135deg, #ff6b6b, #ff8e53)';
+            minimizedIcon.style.boxShadow = '0 6px 20px rgba(255, 107, 107, 0.5)';
+        }
+    }
+
     // 浮窗状态存储
     let isFloatingWindow = false;
     let floatingWindowData = null;
@@ -984,7 +1439,7 @@
         border-radius: 12px !important;
         box-shadow: 0 10px 30px rgba(0,0,0,0.2) !important;
         margin-bottom: 0 !important;
-        max-height: 70vh !important;
+        max-height: ${CONFIG.visibleCount * one_item_height}px !important;
         overflow: hidden !important;
         resize: both !important;
         min-width: 300px !important;
@@ -1419,6 +1874,19 @@
         
         <div class="config-section" style="margin-bottom: 20px;">
             <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px;">🎨 外观设置</h4>
+            <!-- 新增背景颜色设置项 -->
+            <div class="config-item" style="margin-bottom: 10px;">
+                <label style="display: flex; justify-content: space-between; align-items: center; font-size: 13px;">
+                    <span>红包板块背景色:</span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="color" id="backgroundColor" value="${CONFIG.backgroundColor}" 
+                               style="width: 60px; height: 30px; padding: 2px; border: 1px solid #ddd; border-radius: 4px;">
+                        <input type="text" id="backgroundColorText" value="${CONFIG.backgroundColor}"
+                               style="width: 80px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;"
+                               placeholder="#ffffff">
+                    </div>
+                </label>
+            </div>
             <div class="config-item" style="margin-bottom: 10px;">
                 <label style="display: flex; justify-content: space-between; align-items: center; font-size: 13px;">
                     <span>面板位置:</span>
@@ -1463,11 +1931,11 @@
         resetBtn.addEventListener('click', resetConfig);
 
         // 点击外部关闭配置面板
-        configPanel.addEventListener('click', function(e) {
-            if (e.target === configPanel) {
-                configPanel.style.display = 'none';
-            }
-        });
+        // configPanel.addEventListener('click', function(e) {
+        //     if (e.target === configPanel) {
+        //         configPanel.style.display = 'none';
+        //     }
+        // });
 
         // 添加配置按钮
         const floatingBtn = document.querySelector('.floating-window-btn');
@@ -1509,6 +1977,20 @@
             floatingBtn.parentNode.insertBefore(configBtn, floatingBtn);
         }
 
+        const colorInput = document.getElementById('backgroundColor');
+        const colorTextInput = document.getElementById('backgroundColorText');
+
+        // 确保颜色输入框和文本框同步
+        colorInput.addEventListener('input', function() {
+            colorTextInput.value = colorInput.value;
+        });
+
+        colorTextInput.addEventListener('input', function() {
+            if (isValidColor(colorTextInput.value)) {
+                colorInput.value = colorTextInput.value;
+            }
+        });
+
         return configPanel;
     }
 
@@ -1536,6 +2018,8 @@
 
         // 外观设置
         document.getElementById('panelPosition').value = CONFIG.position;
+        document.getElementById('backgroundColor').value = CONFIG.backgroundColor;
+        document.getElementById('backgroundColorText').value = CONFIG.backgroundColor;
     }
 
     // 应用配置
@@ -1559,6 +2043,12 @@
 
         // 外观设置
         CONFIG.position = document.getElementById('panelPosition').value;
+        const colorInput = document.getElementById('backgroundColor');
+        const colorTextInput = document.getElementById('backgroundColorText');
+
+        // 获取背景颜色值
+        CONFIG.backgroundColor = isValidColor(colorTextInput.value) ?
+            colorTextInput.value : colorInput.value;
 
         // 保存到localStorage
         saveConfigToStorage();
@@ -1581,6 +2071,13 @@
         }
     }
 
+    // 新增：验证颜色格式的函数
+    function isValidColor(color) {
+        const s = new Option().style;
+        s.color = color;
+        return s.color !== '';
+    }
+
     // 恢复默认配置
     function resetConfig() {
         // 默认配置
@@ -1596,7 +2093,8 @@
             newMessageThreshold: 5,
             autoDelRedPackets: false,
             enableRedPacketFilter: false,
-            filterRedPacketTypes: []
+            filterRedPacketTypes: [],
+            backgroundColor: '#ffffff'
         };
 
         // 更新CONFIG
@@ -1629,7 +2127,8 @@
                 autoDelRedPackets: CONFIG.autoDelRedPackets,
                 enableRedPacketFilter: CONFIG.enableRedPacketFilter,
                 filterRedPacketTypes: CONFIG.filterRedPacketTypes,
-                position: CONFIG.position
+                position: CONFIG.position,
+                backgroundColor: CONFIG.backgroundColor
             };
 
             localStorage.setItem('redPacketConfig', JSON.stringify(configToSave));
@@ -1666,8 +2165,15 @@
     function updatePanelStyles() {
         const redPacketBody = document.querySelector('.red-packet-body');
         if (redPacketBody) {
-            redPacketBody.style.maxHeight = `${CONFIG.visibleCount * 120}px`;
+            redPacketBody.style.maxHeight = `${CONFIG.visibleCount * one_item_height}px`;
         }
+
+        // 背景颜色
+        const redPacketPanel = document.querySelector('.red-packet-module');
+        if (redPacketPanel) {
+            redPacketPanel.style.backgroundColor = CONFIG.backgroundColor;
+        }
+
     }
 
     // 配置面板的CSS样式（添加到addStyles函数中）
@@ -1794,6 +2300,92 @@
                 if (toast.parentNode) toast.parentNode.removeChild(toast);
             }, 300);
         }, duration);
+    }
+
+    // 新增：CSS样式（添加到 addStyles 函数中）
+    const minimizedStyles = `
+        /* 最小化图标样式 */
+        .red-packet-minimized-icon:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 25px rgba(255, 107, 107, 0.6) !important;
+        }
+        
+        .red-packet-minimized-icon:active {
+            transform: scale(0.95);
+        }
+        
+        /* 最小化图标闪烁动画 */
+        @keyframes alertBlink {
+            0%, 100% { 
+                background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+                box-shadow: 0 6px 20px rgba(255, 107, 107, 0.5);
+            }
+            50% { 
+                background: linear-gradient(135deg, #ff0000, #ff4757);
+                box-shadow: 0 6px 20px rgba(255, 0, 0, 0.7);
+            }
+        }
+        
+        .red-packet-minimized-icon.alerting {
+            animation: alertBlink 1.2s infinite;
+        }
+        
+        /* 右键菜单样式 */
+        .minimized-icon-context-menu {
+            animation: fadeIn 0.2s ease-out;
+        }
+        
+        .context-menu-item:hover {
+            background-color: #f5f5f5;
+        }
+        
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            .red-packet-minimized-icon {
+                width: 50px;
+                height: 50px;
+                font-size: 24px;
+                right: 20px !important;
+                bottom: 80px !important;
+            }
+        }
+    `;
+
+    // 将最小化样式添加到现有的样式表中
+    const minimizedStyleElement = document.createElement('style');
+    minimizedStyleElement.textContent = minimizedStyles;
+    document.head.appendChild(minimizedStyleElement);
+
+    // 新增：在页面卸载前保存图标位置
+    window.addEventListener('beforeunload', saveMinimizedIconPosition);
+
+    // 新增：在窗口大小改变时调整图标位置
+    window.addEventListener('resize', function() {
+        if (minimizedIcon) {
+            const rect = minimizedIcon.getBoundingClientRect();
+            const maxX = window.innerWidth - minimizedIcon.offsetWidth;
+            const maxY = window.innerHeight - minimizedIcon.offsetHeight;
+
+            if (rect.left > maxX || rect.top > maxY) {
+                minimizedIcon.style.left = Math.max(10, Math.min(rect.left, maxX)) + 'px';
+                minimizedIcon.style.top = Math.max(10, Math.min(rect.top, maxY)) + 'px';
+            }
+        }
+    });
+
+    // 新增：初始化时检查是否应该显示最小化图标
+    function checkInitialMinimizedState() {
+        try {
+            const savedMinimizedState = localStorage.getItem('redPacketMinimizedState');
+            if (savedMinimizedState === 'true') {
+                // 延迟执行，确保面板已创建
+                setTimeout(() => {
+                    toggleMinimizeMode();
+                }, 1000);
+            }
+        } catch (error) {
+            console.error('检查最小化状态失败:', error);
+        }
     }
 
 })();
