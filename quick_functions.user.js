@@ -4802,7 +4802,8 @@
                                 //探寻到引用的末端 检查是否出现两个引用层级
                                 var tabEnd = strOriginalContent.lastIndexOf(tab_keyword);
                                 var tabEndStr = strOriginalContent.substring(tabEnd + tab_keyword.length);
-                                if(tabEndStr.lastIndexOf('> ') == tabEndStr.indexOf('> ') || (tabEndStr.lastIndexOf('> ') == tabEndStr.lastIndexOf('> !['))) {
+                                if(tabEndStr.lastIndexOf('> ') == tabEndStr.indexOf('> ') || (tabEndStr.lastIndexOf('> ') == tabEndStr.lastIndexOf('> !['))
+                                    || (tabEndStr.lastIndexOf('> ') == tabEndStr.lastIndexOf('</a>') + 3)) {
                                     //说明是最后一个层级
                                     // 不去除小尾巴
                                     wbStartMsg = strOriginalContent;
@@ -5672,7 +5673,7 @@
             overflow-x: auto;
             background: #f5f5f5;
         }
-        
+
         .emoji-tab {
             padding: 5px 10px;
             margin-right: 5px;
@@ -5683,13 +5684,13 @@
             background: #fff;
             white-space: nowrap;
         }
-        
+
         .emoji-tab.active {
             background: #007bff !important;
             color: white !important;
             border-color: #007bff !important;
         }
-        
+
         .emoji-tab.add-tab {
             background: #6c757d;
             color: white;
@@ -5697,21 +5698,21 @@
             min-width: 30px;
             text-align: center;
         }
-        
+
         .emoji-tabs-content {
             max-height: 200px;
             overflow-y: auto;
             padding: 10px;
         }
-        
+
         .emoji-tab-panel {
             display: none;
         }
-        
+
         .emoji-tab-panel.active {
             display: block;
         }
-        
+
         button .divX {
             position: absolute;
             top: 2px;
@@ -5727,7 +5728,7 @@
             color: white;
             font-size: 12px;
         }
-        
+
         button:hover .divX {
             display: block;
         }
@@ -5742,15 +5743,15 @@
             transition: background-color 0.2s;
             user-select: none;
         }
-        
+
         .emoji-tab:not(.add-tab):hover {
             background-color: #f0f0f0;
         }
-        
+
         .emoji-tab:not(.add-tab).active:hover {
             background-color: #0066cc;
         }
-        
+
         .emoji-tab input {
             min-width: 60px;
             font-family: inherit;
