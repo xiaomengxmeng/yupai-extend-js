@@ -60,6 +60,10 @@
     let alertRedPacketIds = new Set();        // 需要提醒的红包ID集合
     let alertAnimationInterval = null;        // 提醒动画间隔
 
+    // 浮窗状态存储
+    let isFloatingWindow = false;
+    let floatingWindowData = null;
+
     // 主初始化函数
     function init() {
         if (isInitialized) return;
@@ -116,9 +120,10 @@
         isInitialized = true;
 
         // 新增：检查初始最小化状态
-        setTimeout(checkInitialMinimizedState, 300);
+        checkInitialMinimizedState();
 
-        console.log('红包同步脚本初始化完成');
+
+        //console.log('红包同步脚本初始化完成');
 
     }
 
@@ -315,7 +320,7 @@
 
     // 扫描红包（全量）
     function scanRedPackets() {
-        console.log('执行全量红包扫描...');
+        //console.log('执行全量红包扫描...');
         const chatItems = document.querySelectorAll('#comments .chats__item');
         const newPackets = [];
 
@@ -352,10 +357,9 @@
             const redPacketType = getRedPacketType(redPacket);
             if (CONFIG.filterRedPacketTypes.includes(redPacketType)) {
                 //console.log(`过滤红包类型: ${redPacketType} (红包ID: ${packetId})`);
-                //在聊天室隐藏此红包，避免误触，只在红包面板展示红包
+                //return; // 跳过此红包
+                // 修改为在聊天室中屏蔽该红包
                 item.style.display = 'none';
-                // 不跳过，继续执行后续红包面板处理
-                // return; // 注释掉这行，不跳过处理
             }
         }
 
@@ -436,7 +440,7 @@
     function scanLatestMessages() {
         if (!CONFIG.monitorNewMessages) return;
 
-        console.log('扫描最新消息...');
+        //console.log('扫描最新消息...');
         const chatItems = document.querySelectorAll('#comments .chats__item');
         const newPackets = [];
 
@@ -491,7 +495,7 @@
             subtree: true
         });
 
-        console.log('已开始监听聊天室变化');
+        //console.log('已开始监听聊天室变化');
     }
 
     // 获取红包ID
@@ -572,7 +576,7 @@
     function setupRedPacketObserver(packetData) {
         // 如果红包已抢光，则不设置观察器
         if (packetData.status === 'empty') {
-            console.log(`红包 ${packetData.id} 已抢光，不设置观察器`);
+            //console.log(`红包 ${packetData.id} 已抢光，不设置观察器`);
             //delRedPacket(packetData.id);
             return;
         }
@@ -1395,12 +1399,10 @@
         }
     }
 
-    // 浮窗状态存储
-    let isFloatingWindow = false;
-    let floatingWindowData = null;
 
     // 切换浮窗模式
     function toggleFloatingWindow(panel) {
+
         if (isFloatingWindow) {
             // 切换到停靠模式
             restoreToDockedMode(panel);
@@ -1410,6 +1412,21 @@
         }
 
         isFloatingWindow = !isFloatingWindow;
+        localStorage.setItem('redPacketIsFloatingWindow', isFloatingWindow);
+        updateFloatingButtonState();
+    }
+
+    // 加载浮窗模式
+    function loadFloatingWindow(panel) {
+
+        if (isFloatingWindow) {
+            // 切换到浮窗模式
+            switchToFloatingMode(panel);
+        } else {
+            // 切换到停靠模式
+            restoreToDockedMode(panel);
+        }
+
         updateFloatingButtonState();
     }
 
@@ -1455,6 +1472,8 @@
         // 添加到body
         document.body.appendChild(panel);
 
+        localStorage.setItem('redPacketFloatingWindowData', JSON.stringify(floatingWindowData));
+
         //console.log('已切换到浮窗模式');
     }
 
@@ -1481,6 +1500,8 @@
         } else {
             floatingWindowData.parent.appendChild(panel);
         }
+
+        localStorage.setItem('redPacketFloatingWindowData', JSON.stringify(floatingWindowData));
 
         //console.log('已恢复到停靠模式');
     }
@@ -1735,7 +1756,7 @@
             Object.assign(CONFIG, newConfig);
             saveConfigToStorage();
             updatePanelStyles();
-            console.log('配置已更新');
+            //console.log('配置已更新');
         },
         openConfig: function() {
             const configPanel = document.querySelector('.red-packet-config');
@@ -1845,7 +1866,7 @@
                 </label>
             </div>
             <div style="margin-left: 20px; border-left: 2px solid #f0f0f0; padding-left: 15px;">
-                <p style="margin: 0 0 8px 0; font-size: 12px; color: #666;">过滤以下红包类型:</p>
+                <p style="margin: 0 0 8px 0; font-size: 12px; color: #666;">过滤以下红包类型（聊天室将不出现该红包）:</p>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
                     <label style="display: flex; align-items: center; font-size: 12px;">
                         <input type="checkbox" class="redpacket-type" value="拼手气红包" style="margin-right: 6px;">
@@ -2171,10 +2192,32 @@
             redPacketBody.style.maxHeight = `${CONFIG.visibleCount * one_item_height}px`;
         }
 
+        // 读取存储的浮窗状态和数据
+        const redPacketIsFloatingWindow = localStorage.getItem('redPacketIsFloatingWindow');
+        if (redPacketIsFloatingWindow) {
+            if (redPacketIsFloatingWindow == 'true') {
+                isFloatingWindow = true;
+            } else if (redPacketIsFloatingWindow == 'false') {
+                isFloatingWindow = false;
+            }
+        } else {
+            isFloatingWindow = false;
+        }
+        const redPacketFloatingWindowData = localStorage.getItem('redPacketFloatingWindowData');
+        if (redPacketFloatingWindowData) {
+            floatingWindowData = JSON.parse(redPacketFloatingWindowData);
+        }
+
         // 背景颜色
         const redPacketPanel = document.querySelector('.red-packet-module');
         if (redPacketPanel) {
             redPacketPanel.style.backgroundColor = CONFIG.backgroundColor;
+
+            // 加载停靠还是浮窗状态
+            setTimeout(() => {
+                loadFloatingWindow(redPacketPanel);
+            }, 500);
+
         }
 
     }
@@ -2384,7 +2427,7 @@
                 // 延迟执行，确保面板已创建
                 setTimeout(() => {
                     toggleMinimizeMode();
-                }, 1000);
+                }, 500);
             }
         } catch (error) {
             console.error('检查最小化状态失败:', error);
