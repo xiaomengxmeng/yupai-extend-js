@@ -4890,12 +4890,12 @@
                 },
             });
 
-            if (ret == "") {
+            if (ret == "" && gameIdKey === "muli-emojis") {
                 // 第一次初始化脚本表情包 将鱼排表情包进行读取
                 ret = this.getEmojis("emojis");
             } else if (!Array.isArray(ret) && typeof ret === 'object' && ret !== null) {
                 // 实时同步鱼排和分组的表情包
-                if (ret['全部'] && Array.isArray(ret['全部'])) {
+                if (ret['全部'] && Array.isArray(ret['全部']) && gameIdKey === "muli-emojis") {
                     let tempRet = this.getEmojis("emojis");
                     if (tempRet && Array.isArray(tempRet)) {
                         ret['全部'] = Array.from(tempRet);
