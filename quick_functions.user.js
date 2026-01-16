@@ -4802,15 +4802,16 @@
                                 //探寻到引用的末端 检查是否出现两个引用层级
                                 var tabEnd = strOriginalContent.lastIndexOf(tab_keyword);
                                 var tabEndStr = strOriginalContent.substring(tabEnd + tab_keyword.length);
-                                if(tabEndStr.lastIndexOf('> ') == tabEndStr.indexOf('> ') || (tabEndStr.lastIndexOf('> ') == tabEndStr.lastIndexOf('> !['))
-                                    || (tabEndStr.lastIndexOf('> ') == tabEndStr.lastIndexOf('</a>') + 3)) {
-                                    //说明是最后一个层级
-                                    // 不去除小尾巴
-                                    wbStartMsg = strOriginalContent;
-                                } else {
-                                    wbStartMsg = strOriginalContent.substring(0, strOriginalContent.lastIndexOf('> '));
-                                }
-                                //wbStartMsg = strOriginalContent;
+                                // 因为现在双击引用时，会自动在发送前去除小尾巴，所以不用再二次去除了
+                                // if(tabEndStr.lastIndexOf('> ') == tabEndStr.indexOf('> ') || (tabEndStr.lastIndexOf('> ') == tabEndStr.lastIndexOf('> !['))
+                                //    || (tabEndStr.lastIndexOf('> ') == tabEndStr.lastIndexOf('</a>') + 3)) {
+                                //     //说明是最后一个层级
+                                //     // 不去除小尾巴
+                                //     wbStartMsg = strOriginalContent;
+                                // } else {
+                                //     wbStartMsg = strOriginalContent.substring(0, strOriginalContent.lastIndexOf('> '));
+                                // }
+                                wbStartMsg = strOriginalContent;
                             }
                             if (!suffixFlag) {
                                 //去掉别人的尾巴
@@ -4890,12 +4891,12 @@
                 },
             });
 
-            if (ret == "" && gameIdKey === "muli-emojis") {
+            if (ret == "") {
                 // 第一次初始化脚本表情包 将鱼排表情包进行读取
                 ret = this.getEmojis("emojis");
             } else if (!Array.isArray(ret) && typeof ret === 'object' && ret !== null) {
                 // 实时同步鱼排和分组的表情包
-                if (ret['全部'] && Array.isArray(ret['全部']) && gameIdKey === "muli-emojis") {
+                if (ret['全部'] && Array.isArray(ret['全部'])) {
                     let tempRet = this.getEmojis("emojis");
                     if (tempRet && Array.isArray(tempRet)) {
                         ret['全部'] = Array.from(tempRet);
