@@ -2,7 +2,7 @@
 // @name         鱼排红包板块
 // @namespace    https://fishpi.cn
 // @license      MIT
-// @version      1.3.1
+// @version      1.3.2
 // @description  右侧新增红包板块，将聊天室红包同步到红包板块，保持实时更新，支持多类型红包
 // @author       muli
 // @match        https://fishpi.cn/cr
@@ -15,7 +15,7 @@
 // 2026-01-13 新增“是否自动删除已抢光的红包”配置，可配置无效红包是否自动删除
 // 2026-01-13 muli 新增切换浮窗模式按钮，新增不捕获的红包类型配置，新增配置面板
 // 2026-01-14 muli 新增背景颜色配置，新增最小化，最小化后的小图标可右键，会提醒有效的红包，点击后展开定位到指定红包
-// 2026-01-21 muli 修复报错问题
+// 2026-01-21 muli 修复报错问题，过滤红包可选择板块是否进行捕获
 
 (function() {
     'use strict';
@@ -37,6 +37,8 @@
 
         // 是否启用红包类型过滤
         enableRedPacketFilter: false,
+        // 红包板块是否不显示过滤红包
+        enableRedPacketModuleFilter: false,
         backgroundColor: '#ffffff',           // 红包板块背景颜色
     };
 
@@ -358,9 +360,13 @@
             const redPacketType = getRedPacketType(redPacket);
             if (CONFIG.filterRedPacketTypes.includes(redPacketType)) {
                 //console.log(`过滤红包类型: ${redPacketType} (红包ID: ${packetId})`);
-                //return; // 跳过此红包
+
                 // 修改为在聊天室中屏蔽该红包
                 item.style.display = 'none';
+                if (CONFIG.enableRedPacketModuleFilter) {
+                    return; // 跳过此红包
+                }
+
             }
         }
 
@@ -1868,9 +1874,14 @@
                     <input type="checkbox" id="enableRedPacketFilter" style="margin-right: 8px;">
                     启用红包类型过滤
                 </label>
+                <br/>
+                <label style="display: flex; align-items: center; font-size: 13px;">
+                    <input type="checkbox" id="enableRedPacketModuleFilter" style="margin-right: 8px;">
+                    红包板块不显示过滤红包
+                </label>
             </div>
             <div style="margin-left: 20px; border-left: 2px solid #f0f0f0; padding-left: 15px;">
-                <p style="margin: 0 0 8px 0; font-size: 12px; color: #666;">过滤以下红包类型（聊天室将不出现该红包）:</p>
+                <p style="margin: 0 0 8px 0; font-size: 12px; color: #666;">过滤以下红包类型（聊天室和板块都将不出现该红包）:</p>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
                     <label style="display: flex; align-items: center; font-size: 12px;">
                         <input type="checkbox" class="redpacket-type" value="拼手气红包" style="margin-right: 6px;">
@@ -2037,6 +2048,7 @@
 
         // 红包类型过滤
         document.getElementById('enableRedPacketFilter').checked = CONFIG.enableRedPacketFilter;
+        document.getElementById('enableRedPacketModuleFilter').checked = CONFIG.enableRedPacketModuleFilter;
 
         // 设置选中的红包类型
         const typeCheckboxes = document.querySelectorAll('.redpacket-type');
@@ -2064,6 +2076,7 @@
 
         // 红包类型过滤
         CONFIG.enableRedPacketFilter = document.getElementById('enableRedPacketFilter').checked;
+        CONFIG.enableRedPacketModuleFilter = document.getElementById('enableRedPacketModuleFilter').checked;
         CONFIG.filterRedPacketTypes = [];
         document.querySelectorAll('.redpacket-type:checked').forEach(checkbox => {
             CONFIG.filterRedPacketTypes.push(checkbox.value);
@@ -2121,6 +2134,7 @@
             newMessageThreshold: 5,
             autoDelRedPackets: false,
             enableRedPacketFilter: false,
+            enableRedPacketModuleFilter: false,
             filterRedPacketTypes: [],
             backgroundColor: '#ffffff'
         };
@@ -2154,6 +2168,7 @@
                 newMessageThreshold: CONFIG.newMessageThreshold,
                 autoDelRedPackets: CONFIG.autoDelRedPackets,
                 enableRedPacketFilter: CONFIG.enableRedPacketFilter,
+                enableRedPacketModuleFilter: CONFIG.enableRedPacketModuleFilter,
                 filterRedPacketTypes: CONFIG.filterRedPacketTypes,
                 position: CONFIG.position,
                 backgroundColor: CONFIG.backgroundColor
