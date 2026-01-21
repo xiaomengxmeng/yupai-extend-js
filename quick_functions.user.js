@@ -34,7 +34,7 @@
 // 2026-01-08 muli 新增表情包分组功能，与鱼排原有表情包不冲突，可同步保存和读取鱼排表情包数据
 // 2026-01-09 muli 表情包分组tab双击可修改名称，支持对已有表情包进行分组
 // 2026-01-14 muli 新增发送红包函数
-// 2026-01-21 muli 修复全部分组中删除表情包不生效问题，同步鱼排最新引用功能，修复最新引用功能图片和链接在其他端无法显示问题
+// 2026-01-21 muli 修复全部分组中删除表情包不生效问题，同步鱼排最新引用功能，修复最新引用功能图片在其他端无法显示问题
 
 (function () {
     'use strict';
@@ -56,7 +56,7 @@
     let iconText = "![](https://fishpi.cn/gen?ver=0.1&scale=1.5&txt=#{msg}&url=#{avatar}&backcolor=#{backcolor}&fontcolor=#{fontcolor})";
 
     const client_us = "Web/沐里会睡觉";
-    const version_us = "v2.4.1";
+    const version_us = "v2.4.3";
 
     // 小尾巴开关状态
     var suffixFlag = window.localStorage['xwb_flag'] ? JSON.parse(window.localStorage['xwb_flag']) : true;
