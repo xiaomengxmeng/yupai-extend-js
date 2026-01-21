@@ -1,9 +1,10 @@
 // ==UserScript==
 // @name         鱼派快捷功能
-// @version      2.4
+// @version      2.4.1
 // @description  快捷操作，快捷引用、消息、表情包分组、小尾巴
 // @author       Kirito + muli + 18 + trd
 // @match        https://fishpi.cn/cr
+// @icon         https://file.fishpi.cn/2025/11/blob-4d0e46ad.png?imageView2/1/w/48/h/48/interlace/0/q/100
 // @license      MIT
 // @grant        GM_addStyle
 // @grant        GM_notification
@@ -33,6 +34,7 @@
 // 2026-01-08 muli 新增表情包分组功能，与鱼排原有表情包不冲突，可同步保存和读取鱼排表情包数据
 // 2026-01-09 muli 表情包分组tab双击可修改名称，支持对已有表情包进行分组
 // 2026-01-14 muli 新增发送红包函数
+// 2026-01-21 muli 修复全部分组中删除表情包不生效问题，同步鱼排最新引用功能
 
 (function () {
     'use strict';
@@ -54,7 +56,7 @@
     let iconText = "![](https://fishpi.cn/gen?ver=0.1&scale=1.5&txt=#{msg}&url=#{avatar}&backcolor=#{backcolor}&fontcolor=#{fontcolor})";
 
     const client_us = "Web/沐里会睡觉";
-    const version_us = "v2.4";
+    const version_us = "v2.4.1";
 
     // 小尾巴开关状态
     var suffixFlag = window.localStorage['xwb_flag'] ? JSON.parse(window.localStorage['xwb_flag']) : true;
@@ -1762,7 +1764,7 @@
 
     }
 
-    // 处理双击事件
+    // 处理双击事件-双击引用
     document.addEventListener('dblclick', function (event) {
         // 检查是否双击了.chats__content区域
         const chatContent = event.target.closest('.chats__content');
@@ -1798,10 +1800,18 @@
         const markdownContent = htmlToMarkdownQuote(messageHTML);
 
         // 生成新的引用层
-        const newQuote = generateNewQuoteLayer(messageInfo, markdownContent);
+        //const newQuote = generateNewQuoteLayer(messageInfo, markdownContent);
+
+        // 存储引用信息
+        ChatRoom.quoteData.userName = messageInfo.displayName || messageInfo.username;;
+        ChatRoom.quoteData.messageId = messageInfo.messageId.slice(8);;
+        ChatRoom.quoteData.content = markdownContent;
+        // 显示引用预览
+        ChatRoom.showQuote();
+        success = insertAtEndOfVditorInput("");
 
         // 在现有内容后插入引用，并将光标移动到最前面
-        success = insertAtEndOfVditorInput(newQuote);
+        //success = insertAtEndOfVditorInput(newQuote);
 
         if (success) {
             //console.log(`已添加对 ${messageInfo.displayName || messageInfo.username} 的引用`);
@@ -4785,6 +4795,7 @@
                     content: function () {
                         // 获取原始消息内容
                         let originalContent = t;
+
                         // 如果是鱼排的函数引用，小尾巴会出现最后引用换行的情况，因此需要特殊截取
                         var yp_yy_index = originalContent.lastIndexOf('\n> \n>\n');
                         if (yp_yy_index > 0 && yp_yy_index + 9 == originalContent.length) {
@@ -4821,6 +4832,13 @@
                                 return wbStartMsg + '\n\n\n>  ' + muliWb;;
                             }
 
+                        } else {
+                            // 非内容引用 则是鱼排自带的新版引用
+                            // 如果有引用内容，拼接到消息前面
+                            if (ChatRoom.quoteData.userName && ChatRoom.quoteData.content) {
+                                let quoteMd = ChatRoom.quoteData.content.replace(/\n/g, "\n> ");
+                                originalContent = originalContent + `\n\n##### 引用 @${ChatRoom.quoteData.userName} [↩](${Label.servePath}/cr#chatroom${ChatRoom.quoteData.messageId} "跳转至原消息")  \n> ${quoteMd}</span>\n`;
+                            }
                         }
                         // 处理小尾巴和单词
                         if (strOriginalContent.includes(muliWb)
@@ -4840,10 +4858,13 @@
                 success: function (e) {
                     0 === e.code ? $("#chatContentTip").removeClass("error succ").html("") : ($("#chatContentTip").addClass("error").html("<ul><li>" + e.msg + "</li></ul>"),
                         ChatRoom.editor.setValue(t))
+                    // 发送成功后清除引用
+                    ChatRoom.cancelQuote()
                 },
                 error: function (e) {
                     $("#chatContentTip").addClass("error").html("<ul><li>" + e.statusText + "</li></ul>"),
                         ChatRoom.editor.setValue(t)
+                    ChatRoom.editor.setValue(ChatRoom.editor.getValue().replace(content.split('\n\n')[0] + '\n\n', ''))
                 },
                 complete: function (e, t) {
                     ChatRoom.isSend = !1,
@@ -5377,10 +5398,18 @@
                             if (allIndex !== -1) {
                                 emojisMap['全部'].splice(allIndex, 1);
                             }
+                        } else {
+                            // 遍历在其他分组删除
+                            Object.keys(emojisMap).forEach(tempTabName => {
+                                const tempIndex = emojisMap[tempTabName].indexOf(url);
+                                if (tempIndex !== -1) {
+                                    emojisMap[tempTabName].splice(tempIndex, 1);
+                                }
+                            });
                         }
 
                         // 如果标签为空，询问是否删除标签
-                        if (emojisMap[tabName].length === 0 && tabName !== 'default') {
+                        if (emojisMap[tabName].length === 0 && tabName !== 'default' && tabName !== '全部') {
                             if (confirm('此标签已为空，是否删除该标签？')) {
                                 delete emojisMap[tabName];
                             }
