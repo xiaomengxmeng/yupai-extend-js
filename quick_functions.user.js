@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         鱼派快捷功能
-// @version      2.4.1
+// @version      2.4.2
 // @description  快捷操作，快捷引用、消息、表情包分组、小尾巴
 // @author       Kirito + muli + 18 + trd
 // @match        https://fishpi.cn/cr
@@ -4837,7 +4837,7 @@
                             // 如果有引用内容，拼接到消息前面
                             if (ChatRoom.quoteData.userName && ChatRoom.quoteData.content) {
                                 let quoteMd = ChatRoom.quoteData.content.replace(/\n/g, "\n> ");
-                                originalContent = originalContent + `\n\n##### 引用 @${ChatRoom.quoteData.userName} [↩](${Label.servePath}/cr#chatroom${ChatRoom.quoteData.messageId} "跳转至原消息")  \n> ${quoteMd}</span>\n`;
+                                originalContent = originalContent + `\n\n##### 引用 @${ChatRoom.quoteData.userName} [↩](${Label.servePath}/cr#chatroom${ChatRoom.quoteData.messageId} "跳转至原消息")  \n> ${quoteMd}\n`;
                             }
                         }
                         // 处理小尾巴和单词
