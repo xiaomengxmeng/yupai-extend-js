@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         鱼派快捷功能
-// @version      2.4.2
+// @version      2.4.3
 // @description  快捷操作，快捷引用、消息、表情包分组、小尾巴
 // @author       Kirito + muli + 18 + trd
 // @match        https://fishpi.cn/cr
@@ -34,7 +34,7 @@
 // 2026-01-08 muli 新增表情包分组功能，与鱼排原有表情包不冲突，可同步保存和读取鱼排表情包数据
 // 2026-01-09 muli 表情包分组tab双击可修改名称，支持对已有表情包进行分组
 // 2026-01-14 muli 新增发送红包函数
-// 2026-01-21 muli 修复全部分组中删除表情包不生效问题，同步鱼排最新引用功能
+// 2026-01-21 muli 修复全部分组中删除表情包不生效问题，同步鱼排最新引用功能，修复最新引用功能图片和链接在其他端无法显示问题
 
 (function () {
     'use strict';
@@ -1594,7 +1594,17 @@
                     // 元素节点
                     const tagName = node.tagName.toLowerCase();
                     if (tagName === 'img' || tagName === 'a' || tagName === 'h1' || tagName === 'h2' || tagName === 'h3' || tagName === 'h4') {
-                        markdown += indent + node.outerHTML.trim() + '\n';
+                        if (tagName === 'img') {
+                            let aurl = node.getAttribute("src");
+                            markdown += indent + `![图片表情](${aurl})\n`;
+                        } else if (tagName === 'a') {
+                            let aurl = node.getAttribute("href");
+                            let atxt = node.textContent;
+                            markdown += indent + `[${atxt}](${aurl})\n`;
+                        } else {
+                            markdown += indent + node.outerHTML.trim() + '\n';
+                        }
+
                     } else if (tagName === 'p') {
                         if (!node.innerHTML) {
                             continue;
@@ -1607,9 +1617,14 @@
                             markdown += indent + '\n';
                             node.childNodes.forEach(son_node => {
                                 if(son_node.tagName && son_node.tagName.toLowerCase() === 'a') {
-                                    markdown += son_node.outerHTML;
+                                    //markdown += son_node.outerHTML;
+                                    let aurl = son_node.getAttribute("href");
+                                    let atxt = son_node.textContent;
+                                    markdown += `[${atxt}](${aurl})`;
                                 } else if(son_node.tagName && son_node.tagName.toLowerCase() === 'img') {
-                                    markdown += '\n' + son_node.outerHTML + '\n';
+                                    //markdown += '\n' + son_node.outerHTML + '\n';
+                                    let aurl = son_node.getAttribute("src");
+                                    markdown += `\n![图片表情](${aurl})\n`;
                                 } else if(son_node.tagName && son_node.tagName.toLowerCase() === 'br') {
                                     markdown += indent + '\n';
                                 } else {
@@ -1620,10 +1635,18 @@
                             });
                             //markdown += '\n';
                         } else {
-                            if (pContent) {
+                            if (node.childNodes && node.childNodes[0].tagName) {
+                                if(node.childNodes[0] && node.childNodes[0].tagName.toLowerCase() === 'img') {
+                                    let aurl = node.childNodes[0].getAttribute("src");
+                                    markdown += `\n![图片表情](${aurl})\n`;
+                                } else if(node.childNodes[0].tagName.toLowerCase() === 'a') {
+                                    //markdown += indent + node.innerHTML.trim() + '\n';
+                                    let aurl = node.childNodes[0].getAttribute("href");
+                                    let atxt = node.childNodes[0].textContent;
+                                    markdown +=`\n[${atxt}](${aurl})\n`;
+                                }
+                            } else {
                                 markdown += indent + pContent + '\n';
-                            } else if(node.childNodes[0] && node.childNodes[0].tagName.toLowerCase() === 'img' || node.childNodes[0].tagName.toLowerCase() === 'a') {
-                                markdown += indent + node.innerHTML.trim() + '\n';
                             }
                         }
 
