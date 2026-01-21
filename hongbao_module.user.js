@@ -1501,9 +1501,9 @@
                 floatingWindowData.parent.insertBefore(panel, floatingWindowData.nextSibling);
             } else {
                 floatingWindowData.parent.appendChild(panel);
-            }  
+            }
         }
-        
+
 
         localStorage.setItem('redPacketFloatingWindowData', JSON.stringify(floatingWindowData));
 
@@ -2220,7 +2220,7 @@
             // 加载停靠还是浮窗状态
             setTimeout(() => {
                 loadFloatingWindow(redPacketPanel);
-            }, 1500);
+            }, 500);
 
         }
 
