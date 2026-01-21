@@ -2216,7 +2216,7 @@
             // 加载停靠还是浮窗状态
             setTimeout(() => {
                 loadFloatingWindow(redPacketPanel);
-            }, 500);
+            }, 1500);
 
         }
 
