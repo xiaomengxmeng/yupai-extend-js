@@ -2,7 +2,7 @@
 // @name         鱼排红包板块
 // @namespace    https://fishpi.cn
 // @license      MIT
-// @version      1.3
+// @version      1.3.1
 // @description  右侧新增红包板块，将聊天室红包同步到红包板块，保持实时更新，支持多类型红包
 // @author       muli
 // @match        https://fishpi.cn/cr
@@ -15,6 +15,7 @@
 // 2026-01-13 新增“是否自动删除已抢光的红包”配置，可配置无效红包是否自动删除
 // 2026-01-13 muli 新增切换浮窗模式按钮，新增不捕获的红包类型配置，新增配置面板
 // 2026-01-14 muli 新增背景颜色配置，新增最小化，最小化后的小图标可右键，会提醒有效的红包，点击后展开定位到指定红包
+// 2026-01-21 muli 修复报错问题
 
 (function() {
     'use strict';
@@ -1495,11 +1496,14 @@
         `;
 
         // 恢复到原始位置
-        if (floatingWindowData.nextSibling) {
-            floatingWindowData.parent.insertBefore(panel, floatingWindowData.nextSibling);
-        } else {
-            floatingWindowData.parent.appendChild(panel);
+        if (!floatingWindowData.parent) {
+            if (floatingWindowData.nextSibling) {
+                floatingWindowData.parent.insertBefore(panel, floatingWindowData.nextSibling);
+            } else {
+                floatingWindowData.parent.appendChild(panel);
+            }  
         }
+        
 
         localStorage.setItem('redPacketFloatingWindowData', JSON.stringify(floatingWindowData));
 
