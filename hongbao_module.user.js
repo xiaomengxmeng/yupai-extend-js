@@ -2,7 +2,7 @@
 // @name         鱼排红包板块
 // @namespace    https://fishpi.cn
 // @license      MIT
-// @version      1.3.2
+// @version      1.3.3
 // @description  右侧新增红包板块，将聊天室红包同步到红包板块，保持实时更新，支持多类型红包
 // @author       muli
 // @match        https://fishpi.cn/cr
@@ -1502,9 +1502,15 @@
         `;
 
         // 恢复到原始位置
-        if (!floatingWindowData.parent) {
+        if (floatingWindowData.parent) {
             if (floatingWindowData.nextSibling) {
-                floatingWindowData.parent.insertBefore(panel, floatingWindowData.nextSibling);
+                try {
+                    floatingWindowData.parent.insertBefore(panel, floatingWindowData.nextSibling);
+                } catch (err) {
+                    //console.error('初始化停靠异常:', err);
+                    //resolve();
+                }
+
             } else {
                 floatingWindowData.parent.appendChild(panel);
             }
