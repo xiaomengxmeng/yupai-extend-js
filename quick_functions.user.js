@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         鱼派快捷功能
-// @version      2.4.4
+// @version      2.4.5
 // @description  快捷操作，快捷引用、消息、表情包分组、小尾巴
 // @author       Kirito + muli + 18 + trd
 // @match        https://fishpi.cn/cr
@@ -35,7 +35,7 @@
 // 2026-01-09 muli 表情包分组tab双击可修改名称，支持对已有表情包进行分组
 // 2026-01-14 muli 新增发送红包函数
 // 2026-01-21 muli 修复全部分组中删除表情包不生效问题，同步鱼排最新引用功能，修复最新引用功能图片在其他端无法显示问题
-// 2026-01-22 muli 修复脚本多次引用后出现引用名字丢失的问题
+// 2026-01-22 muli 修复脚本多次引用后出现引用名字丢失的问题，优化文字换行时引用的显示
 
 (function () {
     'use strict';
@@ -57,7 +57,7 @@
     let iconText = "![](https://fishpi.cn/gen?ver=0.1&scale=1.5&txt=#{msg}&url=#{avatar}&backcolor=#{backcolor}&fontcolor=#{fontcolor})";
 
     const client_us = "Web/沐里会睡觉";
-    const version_us = "v2.4.4";
+    const version_us = "v2.4.5";
 
     // 小尾巴开关状态
     var suffixFlag = window.localStorage['xwb_flag'] ? JSON.parse(window.localStorage['xwb_flag']) : true;
@@ -1635,20 +1635,20 @@
 
                                 n++;
                             });
-                            //markdown += '\n';
+                            markdown += '\n';
                         } else {
                             if (node.childNodes && node.childNodes[0].tagName) {
                                 if(node.childNodes[0] && node.childNodes[0].tagName.toLowerCase() === 'img') {
                                     let aurl = node.childNodes[0].getAttribute("src");
-                                    markdown += `\n![图片表情](${aurl})\n`;
+                                    markdown += indent + `![图片表情](${aurl})\n`;
                                 } else if(node.childNodes[0].tagName.toLowerCase() === 'a') {
                                     //markdown += indent + node.innerHTML.trim() + '\n';
                                     let aurl = node.childNodes[0].getAttribute("href");
                                     let atxt = node.childNodes[0].textContent;
-                                    markdown +=`\n[${atxt}](${aurl})\n`;
+                                    markdown += indent + `[${atxt}](${aurl})\n`;
                                 }
                             } else {
-                                markdown += indent + pContent + '\n';
+                                markdown += indent + '\n' + pContent + '\n';
                             }
                         }
 
