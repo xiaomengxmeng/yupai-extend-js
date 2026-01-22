@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         鱼派快捷功能
-// @version      2.4.7
+// @version      2.4.8
 // @description  快捷操作，快捷引用、消息、表情包分组、小尾巴
 // @author       Kirito + muli + 18 + trd
 // @match        https://fishpi.cn/cr
@@ -36,6 +36,7 @@
 // 2026-01-14 muli 新增发送红包函数
 // 2026-01-21 muli 修复全部分组中删除表情包不生效问题，同步鱼排最新引用功能，修复最新引用功能图片在其他端无法显示问题
 // 2026-01-22 muli 修复脚本多次引用后出现引用名字丢失的问题，优化文字换行时引用的显示，修复专属红包可以输入空字符串的问题，修复引用话题时的样式问题
+// 2026-01-22 muli 修复多次引用层级不对问题
 
 (function () {
     'use strict';
@@ -57,7 +58,7 @@
     let iconText = "![](https://fishpi.cn/gen?ver=0.1&scale=1.5&txt=#{msg}&url=#{avatar}&backcolor=#{backcolor}&fontcolor=#{fontcolor})";
 
     const client_us = "Web/沐里会睡觉";
-    const version_us = "v2.4.7";
+    const version_us = "v2.4.8";
 
     // 小尾巴开关状态
     var suffixFlag = window.localStorage['xwb_flag'] ? JSON.parse(window.localStorage['xwb_flag']) : true;
@@ -1577,8 +1578,11 @@
         // 递归处理元素
         function processElement(element, level) {
             let markdown = '';
-            const indent = '>'.repeat(level) + (level > 0 ? ' ' : '');
+            let indent = '>'.repeat(level) + (level > 0 ? ' ' : '');
             let thisBlockquoteLevel  = 0;
+            if (indent == "") {
+                indent = "\n";
+            }
 
             // 遍历所有子节点
             for (let node of element.childNodes) {
@@ -1616,7 +1620,7 @@
 
                         if(node.childNodes.length > 1) {
                             var n = 1;
-                            markdown += indent + '\n';
+                            markdown += indent;
                             node.childNodes.forEach(son_node => {
                                 if(son_node.tagName && son_node.tagName.toLowerCase() === 'a') {
                                     //markdown += son_node.outerHTML;
@@ -1628,7 +1632,7 @@
                                     let aurl = son_node.getAttribute("src");
                                     markdown += `\n![图片表情](${aurl})\n`;
                                 } else if(son_node.tagName && son_node.tagName.toLowerCase() === 'br') {
-                                    markdown += indent + '\n';
+                                    markdown += '\n';
                                 } else if(son_node.nodeType === Node.TEXT_NODE) {
                                     markdown += son_node.textContent;
 
@@ -1651,7 +1655,7 @@
                                     markdown += indent + `[${atxt}](${aurl})\n`;
                                 }
                             } else {
-                                markdown += indent + '\n' + pContent + '\n';
+                                markdown += indent + pContent + '\n';
                             }
                         }
 
@@ -1687,7 +1691,7 @@
                             linkText = `[↩](${href} "${title}")`;
                         }
 
-                        markdown += indent + `\n##### 引用 @${userText} ${linkText}\n`;
+                        markdown += indent + `##### 引用 @${userText} ${linkText}\n`;
                     } else if (tagName === 'blockquote') {
                         if (thisBlockquoteLevel > 0) {
                             continue;
@@ -4873,7 +4877,12 @@
                             // 如果有引用内容，拼接到消息前面
                             if (ChatRoom.quoteData.userName && ChatRoom.quoteData.content) {
                                 let quoteMd = ChatRoom.quoteData.content.replace(/\n/g, "\n> ");
-                                originalContent = originalContent + `\n\n##### 引用 @${ChatRoom.quoteData.userName} [↩](${Label.servePath}/cr#chatroom${ChatRoom.quoteData.messageId} "跳转至原消息")  \n> ${quoteMd}\n`;
+                                // 将内部内容每行前面添加 "> "
+                                // let quoteMd = ChatRoom.quoteData.content
+                                //     .split('\n')
+                                //     .map(line => line.trim() === '' ? '>' : `> ${line}`)
+                                //     .join('\n');
+                                originalContent = originalContent + `\n\n##### 引用 @${ChatRoom.quoteData.userName} [↩](${Label.servePath}/cr#chatroom${ChatRoom.quoteData.messageId} "跳转至原消息")  \n ${quoteMd}\n`;
                             }
                         }
                         // 处理小尾巴和单词
