@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         鱼派快捷功能
-// @version      2.4.3
+// @version      2.4.4
 // @description  快捷操作，快捷引用、消息、表情包分组、小尾巴
 // @author       Kirito + muli + 18 + trd
 // @match        https://fishpi.cn/cr
@@ -35,6 +35,7 @@
 // 2026-01-09 muli 表情包分组tab双击可修改名称，支持对已有表情包进行分组
 // 2026-01-14 muli 新增发送红包函数
 // 2026-01-21 muli 修复全部分组中删除表情包不生效问题，同步鱼排最新引用功能，修复最新引用功能图片在其他端无法显示问题
+// 2026-01-22 muli 修复脚本多次引用后出现引用名字丢失的问题
 
 (function () {
     'use strict';
@@ -56,7 +57,7 @@
     let iconText = "![](https://fishpi.cn/gen?ver=0.1&scale=1.5&txt=#{msg}&url=#{avatar}&backcolor=#{backcolor}&fontcolor=#{fontcolor})";
 
     const client_us = "Web/沐里会睡觉";
-    const version_us = "v2.4.3";
+    const version_us = "v2.4.4";
 
     // 小尾巴开关状态
     var suffixFlag = window.localStorage['xwb_flag'] ? JSON.parse(window.localStorage['xwb_flag']) : true;
@@ -1629,6 +1630,7 @@
                                     markdown += indent + '\n';
                                 } else {
                                     markdown += son_node.textContent;
+
                                 }
 
                                 n++;
@@ -1665,6 +1667,14 @@
                         if (userLink) {
                             const ariaLabel = userLink.getAttribute('aria-label');
                             userText = ariaLabel || userLink.textContent;
+                        } else {
+                            // 已经被脚本引用过了 因为脚本艾特可能启用的是中文 所以会导致抓取不到原来的名称
+                            let nameTempText = node.textContent;
+                            let tempStaIndex = nameTempText.indexOf("引用 @");
+                            if (tempStaIndex > -1) {
+                                let tempEndIndex = nameTempText.indexOf(" ↩");
+                                userText = node.textContent.substring(tempStaIndex + 4, tempEndIndex);
+                            }
                         }
 
                         let linkText = '';
@@ -1674,7 +1684,7 @@
                             linkText = `[↩](${href} "${title}")`;
                         }
 
-                        markdown += indent + `##### 引用 @${userText} ${linkText}\n`;
+                        markdown += indent + `\n##### 引用 @${userText} ${linkText}\n`;
                     } else if (tagName === 'blockquote') {
                         if (thisBlockquoteLevel > 0) {
                             continue;
