@@ -1630,7 +1630,7 @@
                                 } else if(son_node.tagName && son_node.tagName.toLowerCase() === 'img') {
                                     //markdown += '\n' + son_node.outerHTML + '\n';
                                     let aurl = son_node.getAttribute("src");
-                                    markdown += `\n![图片表情](${aurl})\n`;
+                                    markdown += `![图片表情](${aurl})\n`;
                                 } else if(son_node.tagName && son_node.tagName.toLowerCase() === 'br') {
                                     markdown += '\n';
                                 } else if(son_node.nodeType === Node.TEXT_NODE) {
