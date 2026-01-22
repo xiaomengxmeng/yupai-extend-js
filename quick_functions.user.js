@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         鱼派快捷功能
-// @version      2.4.8
+// @version      2.4.9
 // @description  快捷操作，快捷引用、消息、表情包分组、小尾巴
 // @author       Kirito + muli + 18 + trd
 // @match        https://fishpi.cn/cr
@@ -36,7 +36,7 @@
 // 2026-01-14 muli 新增发送红包函数
 // 2026-01-21 muli 修复全部分组中删除表情包不生效问题，同步鱼排最新引用功能，修复最新引用功能图片在其他端无法显示问题
 // 2026-01-22 muli 修复脚本多次引用后出现引用名字丢失的问题，优化文字换行时引用的显示，修复专属红包可以输入空字符串的问题，修复引用话题时的样式问题
-// 2026-01-22 muli 修复多次引用层级不对问题
+// 2026-01-22 muli 修复多次引用层级不对问题，修复表情包url上传弹框两次问题
 
 (function () {
     'use strict';
@@ -58,7 +58,7 @@
     let iconText = "![](https://fishpi.cn/gen?ver=0.1&scale=1.5&txt=#{msg}&url=#{avatar}&backcolor=#{backcolor}&fontcolor=#{fontcolor})";
 
     const client_us = "Web/沐里会睡觉";
-    const version_us = "v2.4.8";
+    const version_us = "v2.4.9";
 
     // 小尾巴开关状态
     var suffixFlag = window.localStorage['xwb_flag'] ? JSON.parse(window.localStorage['xwb_flag']) : true;
@@ -4919,6 +4919,9 @@
     };
 
     // 重写获取表情包数据
+    ChatRoom.fromURL = function () {
+        // 不再作用
+    };
 
 
     // 表情包管理模块
