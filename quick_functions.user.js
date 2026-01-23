@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         鱼派快捷功能
-// @version      2.4.9
+// @version      2.5.0
 // @description  快捷操作，快捷引用、消息、表情包分组、小尾巴
 // @author       Kirito + muli + 18 + trd
 // @match        https://fishpi.cn/cr
@@ -37,6 +37,7 @@
 // 2026-01-21 muli 修复全部分组中删除表情包不生效问题，同步鱼排最新引用功能，修复最新引用功能图片在其他端无法显示问题
 // 2026-01-22 muli 修复脚本多次引用后出现引用名字丢失的问题，优化文字换行时引用的显示，修复专属红包可以输入空字符串的问题，修复引用话题时的样式问题
 // 2026-01-22 muli 修复多次引用层级不对问题，修复表情包url上传弹框两次问题
+// 2026-01-23 muli 调整引用图片时使用图片的源地址，表情包新增一键发送按钮（鼠标放在表情包上的右下角蓝色按钮）
 
 (function () {
     'use strict';
@@ -58,7 +59,7 @@
     let iconText = "![](https://fishpi.cn/gen?ver=0.1&scale=1.5&txt=#{msg}&url=#{avatar}&backcolor=#{backcolor}&fontcolor=#{fontcolor})";
 
     const client_us = "Web/沐里会睡觉";
-    const version_us = "v2.4.9";
+    const version_us = "v2.5.0";
 
     // 小尾巴开关状态
     var suffixFlag = window.localStorage['xwb_flag'] ? JSON.parse(window.localStorage['xwb_flag']) : true;
@@ -1601,8 +1602,10 @@
                     const tagName = node.tagName.toLowerCase();
                     if (tagName === 'img' || tagName === 'a' || tagName === 'h1' || tagName === 'h2' || tagName === 'h3' || tagName === 'h4') {
                         if (tagName === 'img') {
-                            let aurl = node.getAttribute("src");
+                            // src
+                            let aurl = node.getAttribute("originalsrc");
                             markdown += indent + `![图片表情](${aurl})\n`;
+                            //markdown += indent + node.outerHTML + '\n';
                         } else if (tagName === 'a') {
                             let aurl = node.getAttribute("href");
                             let atxt = node.textContent;
@@ -1628,8 +1631,8 @@
                                     let atxt = son_node.textContent;
                                     markdown += `[${atxt}](${aurl})`;
                                 } else if(son_node.tagName && son_node.tagName.toLowerCase() === 'img') {
-                                    //markdown += '\n' + son_node.outerHTML + '\n';
-                                    let aurl = son_node.getAttribute("src");
+                                    //markdown += son_node.outerHTML + '\n';
+                                    let aurl = son_node.getAttribute("originalsrc");
                                     markdown += `![图片表情](${aurl})\n`;
                                 } else if(son_node.tagName && son_node.tagName.toLowerCase() === 'br') {
                                     markdown += '\n';
@@ -1646,7 +1649,8 @@
                         } else {
                             if (node.childNodes && node.childNodes[0].tagName) {
                                 if(node.childNodes[0] && node.childNodes[0].tagName.toLowerCase() === 'img') {
-                                    let aurl = node.childNodes[0].getAttribute("src");
+                                    //markdown += node.childNodes[0].outerHTML + '\n';
+                                    let aurl = node.childNodes[0].getAttribute("originalsrc");
                                     markdown += indent + `![图片表情](${aurl})\n`;
                                 } else if(node.childNodes[0].tagName.toLowerCase() === 'a') {
                                     //markdown += indent + node.innerHTML.trim() + '\n';
@@ -5336,6 +5340,31 @@
                         this.allocationEmoji(url, tabName);
                     };
 
+                    // 一键发送按钮
+                    const divSend = document.createElement('div');
+                    divSend.className = 'divEmojiSend';
+                    divSend.style.cssText = `
+                    position: absolute;
+                    bottom: -2px;
+                    right: 2px;
+                    display: none;
+                    background: rgba(51,154,240,0.8);
+                    border-radius: 40%;
+                    width: 16px;
+                    height: 16px;
+                    cursor: pointer;
+                    text-align: center;
+                    line-height: 16px;
+                    color: white;
+                    font-size: 12px;
+                `;
+                    divSend.innerHTML = '↗️';
+
+                    divSend.onclick = (e) => {
+                        e.stopPropagation();
+                        this.muliSendEmoji(url, tabName);
+                    };
+
                     // 表情图片
                     const img = document.createElement('img');
                     img.className = 'vditor-emojis__icon';
@@ -5345,6 +5374,7 @@
 
                     button.appendChild(divX);
                     button.appendChild(divAllocation);
+                    button.appendChild(divSend);
                     button.appendChild(img);
                     tabPanel.appendChild(button);
 
@@ -5352,10 +5382,12 @@
                     button.addEventListener('mouseenter', () => {
                         divX.style.display = 'block';
                         divAllocation.style.display = 'block';
+                        divSend.style.display = 'block';
                     });
                     button.addEventListener('mouseleave', () => {
                         divX.style.display = 'none';
                         divAllocation.style.display = 'none';
+                        divSend.style.display = 'none';
                     });
                 });
 
@@ -5508,6 +5540,14 @@
                 .catch(err => {
                     Util.notice('warning', 1500, '未进行分配！');
                 });
+        },
+
+        // 一键发送表情包函数
+        muliSendEmoji: function(url, tabName) {
+            if (!url || url == '') {
+                return;
+            }
+            sendMsg(`![图片表情](${url})`);
         },
 
         // 保存表情包数据
