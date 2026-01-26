@@ -2,7 +2,7 @@
 // @name         鱼排红包板块
 // @namespace    https://fishpi.cn
 // @license      MIT
-// @version      1.3.3
+// @version      1.3.4
 // @description  右侧新增红包板块，将聊天室红包同步到红包板块，保持实时更新，支持多类型红包
 // @author       muli
 // @match        https://fishpi.cn/cr
@@ -16,6 +16,7 @@
 // 2026-01-13 muli 新增切换浮窗模式按钮，新增不捕获的红包类型配置，新增配置面板
 // 2026-01-14 muli 新增背景颜色配置，新增最小化，最小化后的小图标可右键，会提醒有效的红包，点击后展开定位到指定红包
 // 2026-01-21 muli 修复报错问题，过滤红包可选择板块是否进行捕获
+// 2026-01-26 muli 遗弃了定时全量扫描机制，优化了脚本卡顿情况
 
 (function() {
     'use strict';
@@ -24,7 +25,7 @@
     const CONFIG = {
         maxDisplayCount: 20,          // 最多显示红包数量
         visibleCount: 5,              // 默认可见红包数量
-        refreshInterval: 10000,       // 全量扫描间隔（延长到10秒）
+        refreshInterval: 30000,       // 全量扫描间隔（延长到10秒）
         syncInterval: 1000,           // 同步状态间隔
         preserveOriginal: true,       // 保留原清风明月
         position: 'above',           // 红包面板位置: above(上方) / below(下方)
@@ -114,8 +115,8 @@
         // 开始监听聊天室变化
         startChatroomMonitoring();
 
-        // 开始定时任务
-        startTimers();
+        // 开始定时任务（遗弃全量扫描）
+        //startTimers();
 
         // 添加事件监听
         addEventListeners();
