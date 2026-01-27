@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         鱼派快捷功能
-// @version      2.5.0
+// @version      2.5.1
 // @description  快捷操作，快捷引用、消息、表情包分组、小尾巴
 // @author       Kirito + muli + 18 + trd
 // @match        https://fishpi.cn/cr
@@ -37,7 +37,8 @@
 // 2026-01-21 muli 修复全部分组中删除表情包不生效问题，同步鱼排最新引用功能，修复最新引用功能图片在其他端无法显示问题
 // 2026-01-22 muli 修复脚本多次引用后出现引用名字丢失的问题，优化文字换行时引用的显示，修复专属红包可以输入空字符串的问题，修复引用话题时的样式问题
 // 2026-01-22 muli 修复多次引用层级不对问题，修复表情包url上传弹框两次问题
-// 2026-01-23 muli 调整引用图片时使用图片的源地址，表情包新增一键发送按钮（鼠标放在表情包上的右下角蓝色按钮）
+// 2026-01-23（2.5.0） muli 调整引用图片时使用图片的源地址，表情包新增一键发送按钮（鼠标放在表情包上的右下角蓝色按钮）
+// 2026-01-27 muli 修复专属和其他红包错误显示问题
 
 (function () {
     'use strict';
@@ -59,7 +60,7 @@
     let iconText = "![](https://fishpi.cn/gen?ver=0.1&scale=1.5&txt=#{msg}&url=#{avatar}&backcolor=#{backcolor}&fontcolor=#{fontcolor})";
 
     const client_us = "Web/沐里会睡觉";
-    const version_us = "v2.5.0";
+    const version_us = "v2.5.1";
 
     // 小尾巴开关状态
     var suffixFlag = window.localStorage['xwb_flag'] ? JSON.parse(window.localStorage['xwb_flag']) : true;
@@ -1277,22 +1278,28 @@
         }
 
         let content;
-        if (msg.type !== "rockPaperScissors") {
+        if (msg.type == "rockPaperScissors") {
             content = {
                 type: msg.type,
                 money: msg.money,
                 count: msg.count,
                 msg: msg.msg,
-                recivers: msg.recivers
+                gesture: msg.gesture
+            }
+        } else if (msg.type == "specify") {
+            content = {
+                type: msg.type,
+                money: msg.money,
+                count: msg.count,
+                recivers: msg.recivers,
+                msg: msg.msg
             }
         } else {
             content = {
                 type: msg.type,
                 money: msg.money,
                 count: msg.count,
-                msg: msg.msg,
-                recivers: msg.recivers,
-                gesture: msg.gesture
+                msg: msg.msg
             }
         }
 
