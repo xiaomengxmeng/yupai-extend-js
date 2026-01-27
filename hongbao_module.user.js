@@ -574,9 +574,12 @@
             element.remove();
             // 删除缓存数据
             redPackets.delete(id);
-            displayOrder = displayOrder.filter(item => item == id);
+            displayOrder = displayOrder.filter(item => item != id);
             currentDisplayed.delete(id);
             //processedMessageIds.delete(id);
+
+            // 更新板块显示
+            updateRedPacketDisplay();
         }
 
     }
@@ -620,8 +623,7 @@
                             observer.disconnect();
                             packetData.observer = null;
                             observers.delete(packetData.id);
-                            // 更新板块显示
-                            updateRedPacketDisplay();
+
                             if (CONFIG.autoDelRedPackets) {
                                 delRedPacket(packetData.id);
                                 return;
