@@ -2,7 +2,7 @@
 // @name         鱼排红包板块
 // @namespace    https://fishpi.cn
 // @license      MIT
-// @version      1.3.4
+// @version      1.3.5
 // @description  右侧新增红包板块，将聊天室红包同步到红包板块，保持实时更新，支持多类型红包
 // @author       muli
 // @match        https://fishpi.cn/cr
@@ -17,6 +17,7 @@
 // 2026-01-14 muli 新增背景颜色配置，新增最小化，最小化后的小图标可右键，会提醒有效的红包，点击后展开定位到指定红包
 // 2026-01-21 muli 修复报错问题，过滤红包可选择板块是否进行捕获
 // 2026-01-26 muli 遗弃了定时全量扫描机制，优化了脚本卡顿情况
+// 2026-01-27 muli 修复没有红包时，板块的提示显示不更新
 
 (function() {
     'use strict';
@@ -463,8 +464,8 @@
         if (newPackets.length > 0) {
             handleNewPackets(newPackets);
             updateDisplayOrder();
-            updateRedPacketDisplay();
         }
+        updateRedPacketDisplay();
     }
 
     // 开始监听聊天室变化
