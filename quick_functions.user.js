@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         鱼派快捷功能
-// @version      2.5.1
+// @version      2.5.2
 // @description  快捷操作，快捷引用、消息、表情包分组、小尾巴
 // @author       Kirito + muli + 18 + trd
 // @match        https://fishpi.cn/cr
@@ -39,6 +39,7 @@
 // 2026-01-22 muli 修复多次引用层级不对问题，修复表情包url上传弹框两次问题
 // 2026-01-23（2.5.0） muli 调整引用图片时使用图片的源地址，表情包新增一键发送按钮（鼠标放在表情包上的右下角蓝色按钮）
 // 2026-01-27 muli 修复专属和其他红包错误显示问题
+// 2026-01-28 muli 修复单独话题无法引用的问题（其他单独附带样式的元素）
 
 (function () {
     'use strict';
@@ -60,7 +61,7 @@
     let iconText = "![](https://fishpi.cn/gen?ver=0.1&scale=1.5&txt=#{msg}&url=#{avatar}&backcolor=#{backcolor}&fontcolor=#{fontcolor})";
 
     const client_us = "Web/沐里会睡觉";
-    const version_us = "v2.5.1";
+    const version_us = "v2.5.2";
 
     // 小尾巴开关状态
     var suffixFlag = window.localStorage['xwb_flag'] ? JSON.parse(window.localStorage['xwb_flag']) : true;
@@ -1664,6 +1665,8 @@
                                     let aurl = node.childNodes[0].getAttribute("href");
                                     let atxt = node.childNodes[0].textContent;
                                     markdown += indent + `[${atxt}](${aurl})\n`;
+                                } else {
+                                    markdown += node.childNodes[0].outerHTML + '\n';
                                 }
                             } else {
                                 markdown += indent + pContent + '\n';
