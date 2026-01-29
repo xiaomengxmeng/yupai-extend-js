@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         鱼派快捷功能
-// @version      2.5.3
+// @version      2.5.4
 // @description  快捷操作，快捷引用、消息、表情包分组、小尾巴
 // @author       Kirito + muli + 18 + trd
 // @match        https://fishpi.cn/cr
@@ -40,7 +40,7 @@
 // 2026-01-23（2.5.0） muli 调整引用图片时使用图片的源地址，表情包新增一键发送按钮（鼠标放在表情包上的右下角蓝色按钮）
 // 2026-01-27 muli 修复专属和其他红包错误显示问题
 // 2026-01-28 muli 修复单独话题无法引用的问题（其他单独附带样式的元素）
-// 2026-01-29 muli 分配表情包分组新增检查该分组是否已存在该表情包
+// 2026-01-29 muli 分配表情包分组新增检查该分组是否已存在该表情包，修复去小尾巴误伤的问题，修复原始引用首行没有换行符的问题
 
 (function () {
     'use strict';
@@ -62,7 +62,7 @@
     let iconText = "![](https://fishpi.cn/gen?ver=0.1&scale=1.5&txt=#{msg}&url=#{avatar}&backcolor=#{backcolor}&fontcolor=#{fontcolor})";
 
     const client_us = "Web/沐里会睡觉";
-    const version_us = "v2.5.3";
+    const version_us = "v2.5.4";
 
     // 小尾巴开关状态
     var suffixFlag = window.localStorage['xwb_flag'] ? JSON.parse(window.localStorage['xwb_flag']) : true;
@@ -4851,55 +4851,63 @@
                         // 获取原始消息内容
                         let originalContent = t;
 
-                        // 如果是鱼排的函数引用，小尾巴会出现最后引用换行的情况，因此需要特殊截取
-                        var yp_yy_index = originalContent.lastIndexOf('\n> \n>\n');
-                        if (yp_yy_index > 0 && yp_yy_index + 9 == originalContent.length) {
-                            originalContent = originalContent.substring(0, yp_yy_index);
-                        }
+                        // 如果是鱼排的函数引用，小尾巴会出现最后引用换行的情况，因此需要特殊截取（废弃 目前引用已改版）
+                        // var yp_yy_index = originalContent.lastIndexOf('\n> \n>\n');
+                        // if (yp_yy_index > 0 && yp_yy_index + 9 == originalContent.length) {
+                        //     originalContent = originalContent.substring(0, yp_yy_index);
+                        // }
 
                         let muliWb = getCurrentSuffixText();
                         let strOriginalContent = String(originalContent);
                         // 复读之替换别人的小尾巴（太邪恶了）
                         if (strOriginalContent.includes(wb_keyword)) {
                             var wbEnd  = strOriginalContent.lastIndexOf(wb_keyword);
-                            var wbStartMsg = strOriginalContent.substring(0, wbEnd);
-                            //如果是双击引用 则改为截取最后正确的小尾巴部分
-                            if (wbStartMsg.includes(tab_keyword) && (wbStartMsg.lastIndexOf(tab_keyword) + tab_keyword.length) == wbStartMsg.length) {
-                                //探寻到引用的末端 检查是否出现两个引用层级
-                                var tabEnd = strOriginalContent.lastIndexOf(tab_keyword);
-                                var tabEndStr = strOriginalContent.substring(tabEnd + tab_keyword.length);
-                                // 因为现在双击引用时，会自动在发送前去除小尾巴，所以不用再二次去除了
-                                // if(tabEndStr.lastIndexOf('> ') == tabEndStr.indexOf('> ') || (tabEndStr.lastIndexOf('> ') == tabEndStr.lastIndexOf('> !['))
-                                //    || (tabEndStr.lastIndexOf('> ') == tabEndStr.lastIndexOf('</a>') + 3)) {
-                                //     //说明是最后一个层级
-                                //     // 不去除小尾巴
-                                //     wbStartMsg = strOriginalContent;
-                                // } else {
-                                //     wbStartMsg = strOriginalContent.substring(0, strOriginalContent.lastIndexOf('> '));
-                                // }
-                                wbStartMsg = strOriginalContent;
-                            }
-                            if (!suffixFlag) {
-                                //去掉别人的尾巴
-                                return wbStartMsg;
-                            } else  {
-                                //加上自己的尾巴
-                                return wbStartMsg + '\n\n\n>  ' + muliWb;;
+                            //判断是不是最后出现的小尾巴结尾(判断是引用 还是真实的小尾巴)
+                            if (strOriginalContent.lastIndexOf("> ") - 2 == wbEnd) {
+                                var wbStartMsg = strOriginalContent.substring(0, wbEnd);
+                                //如果是双击引用 则改为截取最后正确的小尾巴部分
+                                if (wbStartMsg.includes(tab_keyword) && (wbStartMsg.lastIndexOf(tab_keyword) + tab_keyword.length) == wbStartMsg.length) {
+                                    //探寻到引用的末端 检查是否出现两个引用层级
+                                    var tabEnd = strOriginalContent.lastIndexOf(tab_keyword);
+                                    var tabEndStr = strOriginalContent.substring(tabEnd + tab_keyword.length);
+                                    // 因为现在双击引用时，会自动在发送前去除小尾巴，所以不用再二次去除了
+                                    // if(tabEndStr.lastIndexOf('> ') == tabEndStr.indexOf('> ') || (tabEndStr.lastIndexOf('> ') == tabEndStr.lastIndexOf('> !['))
+                                    //    || (tabEndStr.lastIndexOf('> ') == tabEndStr.lastIndexOf('</a>') + 3)) {
+                                    //     //说明是最后一个层级
+                                    //     // 不去除小尾巴
+                                    //     wbStartMsg = strOriginalContent;
+                                    // } else {
+                                    //     wbStartMsg = strOriginalContent.substring(0, strOriginalContent.lastIndexOf('> '));
+                                    // }
+                                    wbStartMsg = strOriginalContent;
+                                }
+                                if (!suffixFlag) {
+                                    //去掉别人的尾巴
+                                    return wbStartMsg;
+                                } else  {
+                                    //加上自己的尾巴
+                                    return wbStartMsg + '\n\n\n>  ' + muliWb;;
+                                }
                             }
 
-                        } else {
-                            // 非内容引用 则是鱼排自带的新版引用
-                            // 如果有引用内容，拼接到消息前面
-                            if (ChatRoom.quoteData.userName && ChatRoom.quoteData.content) {
-                                let quoteMd = ChatRoom.quoteData.content.replace(/\n/g, "\n> ");
-                                // 将内部内容每行前面添加 "> "
-                                // let quoteMd = ChatRoom.quoteData.content
-                                //     .split('\n')
-                                //     .map(line => line.trim() === '' ? '>' : `> ${line}`)
-                                //     .join('\n');
-                                originalContent = originalContent + `\n\n##### 引用 @${ChatRoom.quoteData.userName} [↩](${Label.servePath}/cr#chatroom${ChatRoom.quoteData.messageId} "跳转至原消息")  \n ${quoteMd}\n`;
-                            }
+
                         }
+
+                        // 非内容引用 则是鱼排自带的新版引用
+                        // 如果有引用内容，拼接到消息前面
+                        if (ChatRoom.quoteData.userName && ChatRoom.quoteData.content) {
+                            if (!ChatRoom.quoteData.content.startsWith("\n")) {
+                                ChatRoom.quoteData.content = "\n" + ChatRoom.quoteData.content;
+                            }
+                            let quoteMd = ChatRoom.quoteData.content.replace(/\n/g, "\n> ");
+                            // 将内部内容每行前面添加 "> "
+                            // let quoteMd = ChatRoom.quoteData.content
+                            //     .split('\n')
+                            //     .map(line => line.trim() === '' ? '>' : `> ${line}`)
+                            //     .join('\n');
+                            originalContent = originalContent + `\n\n##### 引用 @${ChatRoom.quoteData.userName} [↩](${Label.servePath}/cr#chatroom${ChatRoom.quoteData.messageId} "跳转至原消息")  \n ${quoteMd}\n`;
+                        }
+
                         // 处理小尾巴和单词
                         if (strOriginalContent.includes(muliWb)
                             || t.trim().length == 0 || (!suffixFlag) || needwb == 0 || t.trim().startsWith('凌 ')
