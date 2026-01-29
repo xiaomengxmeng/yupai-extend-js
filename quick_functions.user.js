@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         鱼派快捷功能
-// @version      2.5.2
+// @version      2.5.3
 // @description  快捷操作，快捷引用、消息、表情包分组、小尾巴
 // @author       Kirito + muli + 18 + trd
 // @match        https://fishpi.cn/cr
@@ -40,6 +40,7 @@
 // 2026-01-23（2.5.0） muli 调整引用图片时使用图片的源地址，表情包新增一键发送按钮（鼠标放在表情包上的右下角蓝色按钮）
 // 2026-01-27 muli 修复专属和其他红包错误显示问题
 // 2026-01-28 muli 修复单独话题无法引用的问题（其他单独附带样式的元素）
+// 2026-01-29 muli 分配表情包分组新增检查该分组是否已存在该表情包
 
 (function () {
     'use strict';
@@ -61,7 +62,7 @@
     let iconText = "![](https://fishpi.cn/gen?ver=0.1&scale=1.5&txt=#{msg}&url=#{avatar}&backcolor=#{backcolor}&fontcolor=#{fontcolor})";
 
     const client_us = "Web/沐里会睡觉";
-    const version_us = "v2.5.2";
+    const version_us = "v2.5.3";
 
     // 小尾巴开关状态
     var suffixFlag = window.localStorage['xwb_flag'] ? JSON.parse(window.localStorage['xwb_flag']) : true;
@@ -5534,6 +5535,11 @@
             // 调用下拉框选择函数并处理结果
             muliShowSingleSelect(ops, '请选择你要分配到的分组')
                 .then(selected => {
+                    // 检查是否该分组已存在同样表情包
+                    if (emojisMap[selected].indexOf(url) != -1) {
+                        Util.notice('warning', 1500, '当前分组已存在该表情包！');
+                        return;
+                    }
                     emojisMap[selected].push(url);
                     //非全部对其他分组进行分配需要删除当前分组的表情包
                     if (tabName !== '全部') {
