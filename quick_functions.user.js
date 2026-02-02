@@ -3238,7 +3238,7 @@
         sendRedPacketMsg: {
             params: [
                 { name: 'type', type: 'select', label: '红包类型', options: RED_PACKET_TYPES, required: false},
-                { name: 'money', type: 'number', label: '金额', defaultValue: 256, required: false },
+                { name: 'money', type: 'number', label: '金额', defaultValue: 0, required: false },
                 { name: 'count', type: 'number', label: '红包数量', defaultValue: 1, required: false },
                 { name: 'msg', type: 'text', label: '红包信息', defaultValue: '摸鱼者事尽成', required: false },
                 { name: 'recivers', type: 'text', label: '专属用户名（逗号隔开，非专属可不填）', required: false },
