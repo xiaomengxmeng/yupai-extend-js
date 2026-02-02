@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         鱼派快捷功能
-// @version      2.5.6
+// @version      2.5.7
 // @description  快捷操作，快捷引用、消息、表情包分组、小尾巴
 // @author       Kirito + muli + 18 + trd
 // @match        https://fishpi.cn/cr
@@ -63,7 +63,7 @@
     let iconText = "![](https://fishpi.cn/gen?ver=0.1&scale=1.5&txt=#{msg}&url=#{avatar}&backcolor=#{backcolor}&fontcolor=#{fontcolor})";
 
     const client_us = "Web/沐里会睡觉";
-    const version_us = "v2.5.6";
+    const version_us = "v2.5.7";
 
     // 小尾巴开关状态
     var suffixFlag = window.localStorage['xwb_flag'] ? JSON.parse(window.localStorage['xwb_flag']) : true;
@@ -6198,6 +6198,8 @@
                     // if (Settings.currentEmojiGroupId === groupId) {
                     //   Settings.loadGroupEmojis(groupId);
                     // }
+                    ChatRoom.emojiGroupsDataNew[ChatRoom.currentEmojiGroupIdNew] = null;
+                    ChatRoom.loadGroupEmojisNew(groupId);
                 } else {
                     Util.notice('warning', 2000, result.msg || '添加表情失败');
                 }
