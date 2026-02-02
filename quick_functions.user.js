@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         鱼派快捷功能
-// @version      2.5.5
+// @version      2.5.6
 // @description  快捷操作，快捷引用、消息、表情包分组、小尾巴
 // @author       Kirito + muli + 18 + trd
 // @match        https://fishpi.cn/cr
@@ -63,7 +63,7 @@
     let iconText = "![](https://fishpi.cn/gen?ver=0.1&scale=1.5&txt=#{msg}&url=#{avatar}&backcolor=#{backcolor}&fontcolor=#{fontcolor})";
 
     const client_us = "Web/沐里会睡觉";
-    const version_us = "v2.5.5";
+    const version_us = "v2.5.6";
 
     // 小尾巴开关状态
     var suffixFlag = window.localStorage['xwb_flag'] ? JSON.parse(window.localStorage['xwb_flag']) : true;
@@ -1208,6 +1208,7 @@
         }
 
     }
+
 
     // 发送红包函数
     function sendRedPacketMsg(data) {
@@ -4514,11 +4515,6 @@
 
         // 表情包分组（新版鱼排已自带表情包分组功能）
         //ChatRoomEmojiManager.init();
-        // // 等待鱼排全部表情包加载完成
-        // setTimeout(() => {
-        //     NewChatRoomEmojiManager.init();
-        // }, 3000);
-
 
     }
 
@@ -6038,7 +6034,7 @@
 
                 divAllocation.onclick = (e) => {
                     e.stopPropagation();
-                    this.showGroupSelectDialog(emojiId, emojiName, this);
+                    this.muliShowGroupSelectDialog(emojiId, emojiName, this);
                 };
 
                 // 一键发送按钮
@@ -6102,7 +6098,10 @@
          * @param {string} emojiId 表情id
          * @param {array} groups 分组列表
          */
-        showGroupSelectDialog: function (emojiId, name, NewChatRoomEmojiManager) {
+        muliShowGroupSelectDialog: function (emojiId, name, NewChatRoomEmojiManager) {
+            var tempHtml = "";
+
+
             // 获取所有有效分组
             $.ajax({
                 url: Label.servePath + '/api/emoji/groups',
@@ -6113,7 +6112,7 @@
                         var groups = result.data || [];
 
                         // 生成分组选择HTML
-                        var html = '<div class="form fn-clear" style="padding:0 20px;">';
+                        var html = '<div id="emojiGroupSelectDialog"><div class="form fn-clear" style="padding:0 20px;">';
                         html += '<label>请选择要添加到的分组：</label><br><br>';
                         html += '<select id="groupSelect" style="width: 100%; padding: 8px; margin-bottom: 10px;">';
 
@@ -6125,22 +6124,24 @@
                             }
                             html += '<option value="' + group.oId + '" ' + selected + '>' + group.name + '</option>';
                         }
-
                         html += '</select>';
                         html += '<label>表情别名（可选）：</label><br>';
                         html += '<input id="emojiName" type="text" placeholder="可选，输入表情别名" value="' + (name || '') + '" style="width: 100%; padding: 8px; margin-bottom: 10px;"/>';
                         html += '<br><br>';
-                        html += '<button id="muliEmojiAllocationConfirm" class="fn-right green">确定</button>';
+                        html += '<button id="muliEmojiAllocationConfirm" onclick="ChatRoom.muliConfirmAddEmojiToGroup(\'' + emojiId + '\')" class="fn-right green">确定</button>';
                         html += '<button onclick="$(\'#emojiGroupSelectDialog\').dialog(\'close\')" class="fn-right" style="margin-right: 10px;">取消</button>';
-                        html += '</div>';
+                        html += '</div></div>';
 
                         // 检查弹窗是否存在，如果不存在则创建
                         if ($('#emojiGroupSelectDialog').length === 0) {
-                            $('body').append('<div id="emojiGroupSelectDialog"></div>');
+                            $('body').append(html);
+                        } else {
+                            $('#emojiGroupSelectDialog').remove();
+                            $('body').append(html);
                         }
 
-                        $('#emojiGroupSelectDialog').html(html);
-                        $('#muliEmojiAllocationConfirm').on(NewChatRoomEmojiManager.confirmAddEmojiToGroup(emojiId));
+                        //$('#emojiGroupSelectDialog').html(html);
+
 
                         // 初始化弹窗
                         $('#emojiGroupSelectDialog').dialog({
@@ -6170,44 +6171,44 @@
          * 确认添加表情到分组
          * @param {string} emojiId 表情id
          */
-        confirmAddEmojiToGroup: function (emojiId) {
-            var groupId = $('#groupSelect').val();
-            var name = $('#emojiName').val().trim();
+        muliConfirmAddEmojiToGroup: function (emojiId) {
+        var groupId = $('#groupSelect').val();
+        var name = $('#emojiName').val().trim();
 
-            if (!groupId) {
-                Util.notice('warning', 2000, '请选择一个分组');
-                return;
-            }
+        if (!groupId) {
+            Util.notice('warning', 2000, '请选择一个分组');
+            return;
+        }
 
-            $.ajax({
-                url: Label.servePath + '/api/emoji/group/add-emoji',
-                type: 'POST',
-                data: JSON.stringify({
-                    groupId: groupId,
-                    emojiId: emojiId,
-                    sort: 0,
-                    name: name
-                }),
-                contentType: 'application/json;charset=UTF-8',
-                success: function (result) {
-                    if (result.code === 0) {
-                        Util.notice('success', 1200, '添加表情到分组成功');
-                        $('#emojiGroupSelectDialog').dialog('close');
-                        // 如果当前正在查看该分组，则刷新表情列表
-                        // if (Settings.currentEmojiGroupId === groupId) {
-                        //   Settings.loadGroupEmojis(groupId);
-                        // }
-                    } else {
-                        Util.notice('warning', 2000, result.msg || '添加表情失败');
-                    }
-                },
-                error: function () {
-                    Util.notice('warning', 2000, '添加表情失败，请检查网络');
+        $.ajax({
+            url: Label.servePath + '/api/emoji/group/add-emoji',
+            type: 'POST',
+            data: JSON.stringify({
+                groupId: groupId,
+                emojiId: emojiId,
+                sort: 0,
+                name: name
+            }),
+            contentType: 'application/json;charset=UTF-8',
+            success: function (result) {
+                if (result.code === 0) {
+                    Util.notice('success', 1200, '添加表情到分组成功');
+                    $('#emojiGroupSelectDialog').dialog('close');
+                    // 如果当前正在查看该分组，则刷新表情列表
+                    // if (Settings.currentEmojiGroupId === groupId) {
+                    //   Settings.loadGroupEmojis(groupId);
+                    // }
+                } else {
+                    Util.notice('warning', 2000, result.msg || '添加表情失败');
                 }
-            });
-        },
+            },
+            error: function () {
+                Util.notice('warning', 2000, '添加表情失败，请检查网络');
+            }
+        });
+    }
 
-    }    
+    }
 
 
     // 覆盖原有分组表情包加载
@@ -6216,6 +6217,10 @@
         originalRenderGroupEmojisNew.call(this, ChatRoom.emojiGroupsDataNew[ChatRoom.currentEmojiGroupIdNew]);
         NewChatRoomEmojiManager.init();
     };
+
+    ChatRoom.muliConfirmAddEmojiToGroup = function (emojiId) {
+        NewChatRoomEmojiManager.muliConfirmAddEmojiToGroup(emojiId);
+    }
 
     // 启动脚本
     init();
