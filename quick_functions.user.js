@@ -1261,7 +1261,7 @@
             msg.msg = '沐里天下第一！！！';
         }
         if (!msg.money || msg.money < 1) {
-            let input = prompt('请输入红包金额：', '0');
+            let input = prompt('请输入红包金额：', '256');
             if (input === null || input == "") {
                 muliShowToast("💰金额我替你填？？99999????~");
                 return;
