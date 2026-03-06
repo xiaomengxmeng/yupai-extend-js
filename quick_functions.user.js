@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         鱼派快捷功能
-// @version      2.5.7
+// @version      2.5.8
 // @description  快捷操作，快捷引用、消息、表情包分组、小尾巴
 // @author       Kirito + muli + 18 + trd
 // @match        https://fishpi.cn/cr
@@ -42,6 +42,7 @@
 // 2026-01-28 muli 修复单独话题无法引用的问题（其他单独附带样式的元素）
 // 2026-01-29 muli 分配表情包分组新增检查该分组是否已存在该表情包，修复去小尾巴误伤的问题，修复原始引用首行没有换行符的问题，修复无表情包加载递归问题
 // 2026-02-02 muli 跟进鱼排最新版表情包分组功能，并新增一键分配和一键发送功能
+// 2026-03-06 muli 快捷发送消息，快捷键进行调整，单独回车或者ALT + Enter都会快捷发送，shift + Enter为正常换行键
 
 (function () {
     'use strict';
@@ -63,7 +64,7 @@
     let iconText = "![](https://fishpi.cn/gen?ver=0.1&scale=1.5&txt=#{msg}&url=#{avatar}&backcolor=#{backcolor}&fontcolor=#{fontcolor})";
 
     const client_us = "Web/沐里会睡觉";
-    const version_us = "v2.5.7";
+    const version_us = "v2.5.8";
 
     // 小尾巴开关状态
     var suffixFlag = window.localStorage['xwb_flag'] ? JSON.parse(window.localStorage['xwb_flag']) : true;
@@ -1428,11 +1429,18 @@
         }
     }
 
-    // 检查Alt+Enter发送消息
+    // Enter发送消息
+    // shift + Enter 正常空格
     const sendButton = document.querySelector('.green');
     if (sendButton) {
         document.addEventListener('keydown', function (event) {
-            if (event.key === 'Enter' && event.altKey) {
+            if (event.key === 'Enter' && event.shiftKey) {
+                // event.preventDefault();
+                // sendButton.click();
+            } else if (event.key === 'Enter' && event.altKey) {
+                event.preventDefault();
+                sendButton.click();
+            } else if (event.key === 'Enter') {
                 event.preventDefault();
                 sendButton.click();
             }
@@ -6153,7 +6161,7 @@
                         });
 
                         $('#emojiGroupSelectDialog').dialog('open');
-                        
+
                     }else {
                         Util.notice('warning', 2000, result.msg || '加载分组失败');
                     }
@@ -6163,8 +6171,8 @@
                     Util.notice('warning', 2000, '加载分组失败，请检查网络');
                 }
             });
-            
-            
+
+
         },
 
         /**
